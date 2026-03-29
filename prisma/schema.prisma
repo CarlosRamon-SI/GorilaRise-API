@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id         Int      @id @default(autoincrement())
+  nome       String
+  email      String   @unique
+  cpf        String   @unique
+  telefone   String
+  nascimento DateTime
+  endereco   String
+  cidade     String
+  cep        String
+  senha      String
+  role       Role     @default(MEMBRO)
+  ativo      Boolean  @default(true)
+  criadoEm   DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  matriculas Matricula[]
+}
+
+model Modalidade {
+  id        Int        @id @default(autoincrement())
+  nome      String
+  descricao String     @db.Text
+  categoria String
+  ativa     Boolean    @default(true)
+
+  matriculas Matricula[]
+}
+
+model Plano {
+  id        Int        @id @default(autoincrement())
+  nome      String
+  valor     Decimal    @db.Decimal(10, 2)
+  descricao String?
+  ativo     Boolean    @default(true)
+
+  matriculas Matricula[]
+}
+
+model Matricula {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int
+  modalidadeId Int
+  planoId     Int
+  status      StatusMatricula @default(ATIVA)
+  criadoEm   DateTime @default(now())
+
+  usuario    Usuario    @relation(fields: [usuarioId], references: [id])
+  modalidade Modalidade @relation(fields: [modalidadeId], references: [id])
+  plano      Plano      @relation(fields: [planoId], references: [id])
+}
+
+model Lead {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String
+  whatsapp  String?
+  origem    String   @default("eventos")
+  criadoEm DateTime @default(now())
+}
+
+enum Role {
+  MEMBRO
+  ADMIN
+}
+
+enum StatusMatricula {
+  ATIVA
+  INATIVA
+  PENDENTE
+}
