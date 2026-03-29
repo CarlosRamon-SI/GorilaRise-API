@@ -18,7 +18,7 @@ model Usuario {
   cidade     String
   cep        String
   senha      String
-  role       Role     @default(MEMBRO)
+  role       Role     @default(USUARIO)
   ativo      Boolean  @default(true)
   criadoEm   DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -69,7 +69,8 @@ model Lead {
 }
 
 enum Role {
-  MEMBRO
+  USUARIO
+  TREINADOR
   ADMIN
 }
 

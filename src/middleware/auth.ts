@@ -1,5 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 
+type JwtPayload = { sub: number; role: 'USUARIO' | 'TREINADOR' | 'ADMIN' }
+
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   try {
     await request.jwtVerify()
@@ -8,11 +10,23 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   }
 }
 
+export async function requireTreinador(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    await request.jwtVerify()
+    const { role } = request.user as JwtPayload
+    if (!['TREINADOR', 'ADMIN'].includes(role)) {
+      reply.status(403).send({ error: 'Acesso negado' })
+    }
+  } catch {
+    reply.status(401).send({ error: 'Não autorizado' })
+  }
+}
+
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
   try {
     await request.jwtVerify()
-    const payload = request.user as { role: string }
-    if (payload.role !== 'ADMIN') {
+    const { role } = request.user as JwtPayload
+    if (role !== 'ADMIN') {
       reply.status(403).send({ error: 'Acesso negado' })
     }
   } catch {
