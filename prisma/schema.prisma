@@ -72,6 +72,15 @@ model ProjetoSocial {
   criadoEm  DateTime @default(now())
 }
 
+model DocumentoOficial {
+  id        Int      @id @default(autoincrement())
+  titulo    String
+  descricao String?
+  fileUrl   String
+  ativo     Boolean  @default(true)
+  criadoEm DateTime @default(now())
+}
+
 model Lead {
   id        Int      @id @default(autoincrement())
   nome      String

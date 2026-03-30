@@ -6,7 +6,7 @@ import path from 'path'
 import { requireAdmin } from '../middleware/auth.js'
 
 const UPLOADS_DIR = path.resolve('uploads')
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function uploadRoutes(app: FastifyInstance) {
