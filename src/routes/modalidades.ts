@@ -6,7 +6,7 @@ import { requireAdmin } from '../middleware/auth.js'
 const modalidadeSchema = z.object({
   nome: z.string().min(2),
   descricao: z.string().min(10),
-  categoria: z.enum(['combate', 'coletivo', 'individual', 'artistico']),
+  categoria: z.string().min(2),
   ativa: z.boolean().optional().default(true),
 })
 
