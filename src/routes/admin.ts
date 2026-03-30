@@ -6,14 +6,16 @@ import { requireAdmin, requireTreinador } from '../middleware/auth.js'
 export async function adminRoutes(app: FastifyInstance) {
   // Stats — TREINADOR e ADMIN
   app.get('/stats', { preHandler: requireTreinador }, async () => {
-    const [usuarios, matriculas, modalidades, planos, leads] = await Promise.all([
+    const [usuarios, matriculas, modalidades, planos, leads, projetos, documentos] = await Promise.all([
       prisma.usuario.count({ where: { ativo: true } }),
       prisma.matricula.count({ where: { status: 'ATIVA' } }),
       prisma.modalidade.count({ where: { ativa: true } }),
       prisma.plano.count({ where: { ativo: true } }),
       prisma.lead.count(),
+      prisma.projetoSocial.count({ where: { ativo: true } }),
+      prisma.documentoOficial.count({ where: { ativo: true } }),
     ])
-    return { usuarios, matriculas, modalidades, planos, leads }
+    return { usuarios, matriculas, modalidades, planos, leads, projetos, documentos }
   })
 
   // Listar usuários — TREINADOR e ADMIN
