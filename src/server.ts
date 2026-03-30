@@ -7,6 +7,7 @@ import { modalidadesRoutes } from './routes/modalidades.js'
 import { planosRoutes } from './routes/planos.js'
 import { leadsRoutes } from './routes/leads.js'
 import { adminRoutes } from './routes/admin.js'
+import { projetosRoutes } from './routes/projetos.js'
 
 const app = Fastify({ logger: true })
 
@@ -29,6 +30,7 @@ await app.register(modalidadesRoutes, { prefix: '/modalidades' })
 await app.register(planosRoutes, { prefix: '/planos' })
 await app.register(leadsRoutes, { prefix: '/leads' })
 await app.register(adminRoutes, { prefix: '/admin' })
+await app.register(projetosRoutes, { prefix: '/projetos' })
 
 // Health check
 app.get('/health', async () => ({ status: 'ok' }))
