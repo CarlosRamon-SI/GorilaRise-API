@@ -60,12 +60,16 @@ model Matricula {
 }
 
 model ProjetoSocial {
-  id        Int      @id @default(autoincrement())
-  titulo    String
-  descricao String   @db.Text
-  icone     String   @default("heart")
-  ativo     Boolean  @default(true)
-  criadoEm DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  titulo     String
+  slug       String   @unique
+  subtitulo  String?
+  descricao  String   @db.Text
+  conteudo   String?  @db.Text
+  imagemUrl  String?
+  icone      String   @default("heart")
+  ativo      Boolean  @default(true)
+  criadoEm  DateTime @default(now())
 }
 
 model Lead {
