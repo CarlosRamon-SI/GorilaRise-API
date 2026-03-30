@@ -30,7 +30,7 @@ export async function modalidadesRoutes(app: FastifyInstance) {
     return reply.status(201).send(await prisma.modalidade.create({ data: result.data }))
   })
 
-  app.put('/:id', { preHandler: requireAdmin }, async (request, reply) => {
+  app.patch('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const result = modalidadeSchema.partial().safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
