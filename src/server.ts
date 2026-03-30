@@ -2,17 +2,28 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import helmet from '@fastify/helmet'
+import multipart from '@fastify/multipart'
+import staticFiles from '@fastify/static'
+import path from 'path'
 import { authRoutes } from './routes/auth.js'
 import { modalidadesRoutes } from './routes/modalidades.js'
 import { planosRoutes } from './routes/planos.js'
 import { leadsRoutes } from './routes/leads.js'
 import { adminRoutes } from './routes/admin.js'
 import { projetosRoutes } from './routes/projetos.js'
+import { uploadRoutes } from './routes/upload.js'
 
 const app = Fastify({ logger: true })
 
 // Plugins
-await app.register(helmet)
+await app.register(helmet, {
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+})
+await app.register(multipart, { limits: { fileSize: 6 * 1024 * 1024 } })
+await app.register(staticFiles, {
+  root: path.resolve('uploads'),
+  prefix: '/uploads/',
+})
 await app.register(cors, {
   origin: [
     'https://evo.adtecnologia.com.br',
@@ -31,6 +42,7 @@ await app.register(planosRoutes, { prefix: '/planos' })
 await app.register(leadsRoutes, { prefix: '/leads' })
 await app.register(adminRoutes, { prefix: '/admin' })
 await app.register(projetosRoutes, { prefix: '/projetos' })
+await app.register(uploadRoutes, { prefix: '/upload' })
 
 // Health check
 app.get('/health', async () => ({ status: 'ok' }))
