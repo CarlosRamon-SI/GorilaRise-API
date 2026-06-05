@@ -8,60 +8,57 @@ datasource db {
 }
 
 model Usuario {
-  id         Int      @id @default(autoincrement())
-  nome       String
-  email      String   @unique
-  cpf        String   @unique
-  telefone   String
-  nascimento DateTime
-  endereco   String
-  cidade     String
-  cep        String
-  senha      String
-  role       Role     @default(USUARIO)
-  ativo      Boolean  @default(true)
-  criadoEm   DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  id           Int           @id @default(autoincrement())
+  nome         String
+  email        String        @unique
+  cpf          String        @unique
+  telefone     String
+  nascimento   DateTime
+  endereco     String
+  cidade       String
+  cep          String
+  senha        String
+  role         Role          @default(USUARIO)
+  ativo        Boolean       @default(true)
+  criadoEm     DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
 
-  matriculas Matricula[]
-  checkIns   CheckIn[]
-  anamnese   Anamnese?
-  recordes   Recorde[]
+  matriculas    Matricula[]
+  checkIns      CheckIn[]
+  anamnese      Anamnese?
+  recordes      Recorde[]
+  fotosProgresso FotoProgresso[]
+  biometria     Biometria?
+  prontuarioDocs ProntuarioDoc[]
 }
 
 model Modalidade {
-  id        Int        @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   nome      String
-  descricao String     @db.Text
+  descricao String      @db.Text
   categoria String
-  ativa     Boolean    @default(true)
+  ativa     Boolean     @default(true)
 
   matriculas Matricula[]
-  checkIns   CheckIn[]
-  anamnese   Anamnese?
-  recordes   Recorde[]
 }
 
 model Plano {
-  id        Int        @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   nome      String
-  valor     Decimal    @db.Decimal(10, 2)
+  valor     Decimal     @db.Decimal(10, 2)
   descricao String?
-  ativo     Boolean    @default(true)
+  ativo     Boolean     @default(true)
 
   matriculas Matricula[]
-  checkIns   CheckIn[]
-  anamnese   Anamnese?
-  recordes   Recorde[]
 }
 
 model Matricula {
-  id          Int      @id @default(autoincrement())
-  usuarioId   Int
+  id           Int             @id @default(autoincrement())
+  usuarioId    Int
   modalidadeId Int
-  planoId     Int
-  status      StatusMatricula @default(ATIVA)
-  criadoEm   DateTime @default(now())
+  planoId      Int
+  status       StatusMatricula @default(ATIVA)
+  criadoEm     DateTime        @default(now())
 
   usuario    Usuario    @relation(fields: [usuarioId], references: [id])
   modalidade Modalidade @relation(fields: [modalidadeId], references: [id])
@@ -69,15 +66,15 @@ model Matricula {
 }
 
 model ProjetoSocial {
-  id         Int      @id @default(autoincrement())
-  titulo     String
-  slug       String   @unique
-  subtitulo  String?
-  descricao  String   @db.Text
-  conteudo   String?  @db.Text
-  imagemUrl  String?
-  icone      String   @default("heart")
-  ativo      Boolean  @default(true)
+  id        Int      @id @default(autoincrement())
+  titulo    String
+  slug      String   @unique
+  subtitulo String?
+  descricao String   @db.Text
+  conteudo  String?  @db.Text
+  imagemUrl String?
+  icone     String   @default("heart")
+  ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now())
 }
 
@@ -87,7 +84,7 @@ model DocumentoOficial {
   descricao String?
   fileUrl   String
   ativo     Boolean  @default(true)
-  criadoEm DateTime @default(now())
+  criadoEm  DateTime @default(now())
 }
 
 model Lead {
@@ -96,7 +93,7 @@ model Lead {
   email     String
   whatsapp  String?
   origem    String   @default("eventos")
-  criadoEm DateTime @default(now())
+  criadoEm  DateTime @default(now())
 }
 
 enum Role {
@@ -109,6 +106,55 @@ enum StatusMatricula {
   ATIVA
   INATIVA
   PENDENTE
+}
+
+enum FuncaoFuncionario {
+  PROFESSOR
+  NUTRICIONISTA
+  FISIOTERAPEUTA
+}
+
+enum CategoriaPatrocinador {
+  PLATINA
+  OURO
+  PRATA
+  BRONZE
+}
+
+enum TipoNotificacao {
+  AVISO
+  EVENTO
+  COMUNICADO
+}
+
+model Premiacao {
+  id          Int       @id @default(autoincrement())
+  titulo      String
+  descricao   String?   @db.Text
+  atletaNome  String    @default("")
+  data        DateTime? @db.Date
+  imagemUrl   String?
+  ativo       Boolean   @default(true)
+  criadoEm    DateTime  @default(now())
+}
+
+model Patrocinador {
+  id        Int                   @id @default(autoincrement())
+  nome      String
+  descricao String?               @db.Text
+  logoUrl   String?
+  link      String?
+  categoria CategoriaPatrocinador @default(OURO)
+  ativo     Boolean               @default(true)
+  criadoEm  DateTime              @default(now())
+}
+
+model Notificacao {
+  id        Int             @id @default(autoincrement())
+  titulo    String
+  corpo     String          @db.Text
+  tipo      TipoNotificacao @default(AVISO)
+  criadoEm  DateTime        @default(now())
 }
 
 model Configuracao {
@@ -128,6 +174,16 @@ model Configuracao {
   facebook    String @default("")
   youtube     String @default("")
   tiktok      String @default("")
+}
+
+model Funcionario {
+  id        Int               @id @default(autoincrement())
+  nome      String
+  email     String            @unique
+  cref      String            @default("")
+  funcao    FuncaoFuncionario @default(PROFESSOR)
+  ativo     Boolean           @default(true)
+  criadoEm  DateTime          @default(now())
 }
 
 model Turma {
@@ -171,7 +227,7 @@ model Anamnese {
   fumante               Boolean   @default(false)
   frequenciaBanheiro    String?
   atividadeAnterior     String?   @db.Text
-  frequenciaSemanal     Int?
+  frequenciaSemanal     String?
   qualidadeSono         String?
   consumoAlcool         String?
   termoAssinado         Boolean   @default(false)
@@ -186,8 +242,62 @@ model Recorde {
   id        Int      @id @default(autoincrement())
   usuarioId Int
   exercicio String
-  carga     Float
+  carga     String
   data      DateTime @default(now())
 
   usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+enum TipoFoto {
+  INICIAL
+  PROGRESSO
+}
+
+model FotoProgresso {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  tipo      TipoFoto
+  url       String
+  criadoEm  DateTime @default(now())
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+model Biometria {
+  id              Int      @id @default(autoincrement())
+  usuarioId       Int      @unique
+  peso            String?
+  altura          String?
+  pressaoArterial String?
+  bioimpedancia   String?
+  atualizadoEm    DateTime @updatedAt
+
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+model ProntuarioDoc {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  nome      String
+  url       String
+  criadoEm  DateTime @default(now())
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+model WOD {
+  id         Int      @id @default(autoincrement())
+  titulo     String
+  descricao  String?
+  exercicios String?  @db.Text
+  data       DateTime @db.Date
+  criadoEm   DateTime @default(now())
+}
+
+model TreinoPrescrito {
+  id         Int      @id @default(autoincrement())
+  atletaNome String
+  titulo     String
+  exercicios String?  @db.Text
+  criadoEm   DateTime @default(now())
 }

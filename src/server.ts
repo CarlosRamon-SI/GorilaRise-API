@@ -14,6 +14,18 @@ import { projetosRoutes } from './routes/projetos.js'
 import { uploadRoutes } from './routes/upload.js'
 import { documentosRoutes } from './routes/documentos.js'
 import { configuracoesRoutes } from './routes/configuracoes.js'
+import { anamneseRoutes } from './routes/anamnese.js'
+import { recordesRoutes } from './routes/recordes.js'
+import { checkinRoutes, checkinAdminRoutes } from './routes/checkin.js'
+import { funcionariosRoutes } from './routes/funcionarios.js'
+import { professorRoutes } from './routes/professor.js'
+import { premiacoesRoutes } from './routes/premiacoes.js'
+import { patrocinadoresRoutes } from './routes/patrocinadores.js'
+import { notificacoesRoutes } from './routes/notificacoes.js'
+import { fotosRoutes } from './routes/fotos.js'
+import { prontuarioRoutes } from './routes/prontuario.js'
+import { treinosRoutes } from './routes/treinos.js'
+import { financeiroRoutes } from './routes/financeiro.js'
 
 const app = Fastify({ logger: true })
 
@@ -47,6 +59,19 @@ await app.register(projetosRoutes, { prefix: '/projetos' })
 await app.register(uploadRoutes, { prefix: '/upload' })
 await app.register(documentosRoutes, { prefix: '/documentos' })
 await app.register(configuracoesRoutes)
+await app.register(anamneseRoutes)
+await app.register(recordesRoutes)
+await app.register(checkinRoutes)
+await app.register(checkinAdminRoutes, { prefix: '/admin' })
+await app.register(funcionariosRoutes)
+await app.register(professorRoutes, { prefix: '/professor' })
+await app.register(premiacoesRoutes)
+await app.register(patrocinadoresRoutes)
+await app.register(notificacoesRoutes)
+await app.register(fotosRoutes)
+await app.register(prontuarioRoutes)
+await app.register(treinosRoutes, { prefix: '/treinos' })
+await app.register(financeiroRoutes)
 
 // Health check
 app.get('/health', async () => ({ status: 'ok' }))

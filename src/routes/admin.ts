@@ -66,6 +66,45 @@ export async function adminRoutes(app: FastifyInstance) {
     return reply.status(204).send()
   })
 
+  // Criar novo usuário — só ADMIN
+  app.post('/usuarios', { preHandler: requireAdmin }, async (request, reply) => {
+    const schema = z.object({
+      nome:     z.string().min(3),
+      email:    z.string().email(),
+      cpf:      z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/),
+      telefone: z.string().min(10),
+      cidade:   z.string().optional().default(''),
+      role:     z.enum(['USUARIO', 'TREINADOR', 'ADMIN']).default('USUARIO'),
+      senha:    z.string().min(8),
+    })
+    const result = schema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+
+    const hash = await bcrypt.hash(result.data.senha, 10)
+    try {
+      const usuario = await prisma.usuario.create({
+        data: {
+          ...result.data,
+          senha: hash,
+          nascimento: new Date(),
+          endereco: '',
+          cep: '',
+        },
+        select: {
+          id: true, nome: true, email: true, cpf: true,
+          telefone: true, cidade: true, role: true, ativo: true, criadoEm: true,
+        },
+      })
+      return reply.status(201).send(usuario)
+    } catch (e: any) {
+      if (e.code === 'P2002') {
+        const field = e.meta?.target?.includes('email') ? 'e-mail' : 'CPF'
+        return reply.status(409).send({ error: `Este ${field} já está em uso.` })
+      }
+      throw e
+    }
+  })
+
   // Listar matrículas — TREINADOR e ADMIN
   app.get('/matriculas', { preHandler: requireTreinador }, async () => {
     return prisma.matricula.findMany({
