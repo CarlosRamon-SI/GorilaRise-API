@@ -24,6 +24,9 @@ model Usuario {
   atualizadoEm DateTime @updatedAt
 
   matriculas Matricula[]
+  checkIns   CheckIn[]
+  anamnese   Anamnese?
+  recordes   Recorde[]
 }
 
 model Modalidade {
@@ -34,6 +37,9 @@ model Modalidade {
   ativa     Boolean    @default(true)
 
   matriculas Matricula[]
+  checkIns   CheckIn[]
+  anamnese   Anamnese?
+  recordes   Recorde[]
 }
 
 model Plano {
@@ -44,6 +50,9 @@ model Plano {
   ativo     Boolean    @default(true)
 
   matriculas Matricula[]
+  checkIns   CheckIn[]
+  anamnese   Anamnese?
+  recordes   Recorde[]
 }
 
 model Matricula {
@@ -100,4 +109,85 @@ enum StatusMatricula {
   ATIVA
   INATIVA
   PENDENTE
+}
+
+model Configuracao {
+  id          Int    @id @default(autoincrement())
+  logradouro  String @default("")
+  numero      String @default("")
+  complemento String @default("")
+  bairro      String @default("")
+  cidade      String @default("")
+  estado      String @default("")
+  cep         String @default("")
+  telefone    String @default("")
+  whatsapp    String @default("")
+  email       String @default("")
+  horarios    Json   @default("{}")
+  instagram   String @default("")
+  facebook    String @default("")
+  youtube     String @default("")
+  tiktok      String @default("")
+}
+
+model Turma {
+  id         Int       @id @default(autoincrement())
+  codigo     String    @unique
+  horario    String
+  dias       Json
+  tipo       String    @default("regular")
+  descricao  String?
+  faixaIdade String?
+  capacidade Int       @default(6)
+  ativa      Boolean   @default(true)
+  checkIns   CheckIn[]
+}
+
+model CheckIn {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  turmaId   Int
+  data      DateTime @db.Date
+  criadoEm  DateTime @default(now())
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  turma     Turma    @relation(fields: [turmaId], references: [id])
+
+  @@unique([usuarioId, turmaId, data])
+}
+
+model Anamnese {
+  id                    Int       @id @default(autoincrement())
+  usuarioId             Int       @unique
+  profissao             String?
+  contatoEmergenciaNome String?
+  contatoEmergenciaTel  String?
+  objetivos             Json      @default("[]")
+  doencas               String?   @db.Text
+  medicamentos          String?   @db.Text
+  cirurgias             String?   @db.Text
+  problemasArticulares  String?   @db.Text
+  historicoCardio       Boolean   @default(false)
+  fumante               Boolean   @default(false)
+  frequenciaBanheiro    String?
+  atividadeAnterior     String?   @db.Text
+  frequenciaSemanal     Int?
+  qualidadeSono         String?
+  consumoAlcool         String?
+  termoAssinado         Boolean   @default(false)
+  termoData             DateTime?
+  criadoEm              DateTime  @default(now())
+  atualizadoEm          DateTime  @updatedAt
+
+  usuario               Usuario   @relation(fields: [usuarioId], references: [id])
+}
+
+model Recorde {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  exercicio String
+  carga     Float
+  data      DateTime @default(now())
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
 }

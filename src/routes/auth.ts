@@ -23,6 +23,16 @@ const loginSchema = z.object({
 })
 
 export async function authRoutes(app: FastifyInstance) {
+  // Verificação de disponibilidade — público
+  app.get('/check', async (request, reply) => {
+    const { cpf, email } = request.query as { cpf?: string; email?: string }
+    if (!cpf && !email) return reply.status(400).send({ error: 'Informe cpf ou email' })
+    const exists = await prisma.usuario.findFirst({
+      where: { OR: [...(cpf ? [{ cpf }] : []), ...(email ? [{ email }] : [])] },
+      select: { id: true },
+    })
+    return { disponivel: !exists }
+  })
   app.post('/cadastro', async (request, reply) => {
     const result = cadastroSchema.safeParse(request.body)
     if (!result.success) {
@@ -92,7 +102,13 @@ export async function authRoutes(app: FastifyInstance) {
     const payload = request.user as { sub: number }
     const usuario = await prisma.usuario.findUnique({
       where: { id: payload.sub },
-      select: { id: true, nome: true, email: true, role: true, criadoEm: true },
+      select: {
+        id: true, nome: true, email: true, role: true, criadoEm: true,
+        matriculas: {
+          where: { status: 'ATIVA' },
+          include: { modalidade: true, plano: true },
+        },
+      },
     })
     return usuario
   })

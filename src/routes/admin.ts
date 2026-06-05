@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import bcrypt from 'bcrypt'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin, requireTreinador } from '../middleware/auth.js'
 
@@ -52,6 +53,17 @@ export async function adminRoutes(app: FastifyInstance) {
       data: result.data,
       select: { id: true, nome: true, email: true, role: true, ativo: true },
     })
+  })
+
+  // Alterar senha de usuário — só ADMIN
+  app.patch('/usuarios/:id/senha', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const schema = z.object({ senha: z.string().min(8) })
+    const result = schema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: 'Senha deve ter mínimo 8 caracteres.' })
+    const hash = await bcrypt.hash(result.data.senha, 10)
+    await prisma.usuario.update({ where: { id: Number(id) }, data: { senha: hash } })
+    return reply.status(204).send()
   })
 
   // Listar matrículas — TREINADOR e ADMIN

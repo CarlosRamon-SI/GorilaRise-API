@@ -13,6 +13,7 @@ import { adminRoutes } from './routes/admin.js'
 import { projetosRoutes } from './routes/projetos.js'
 import { uploadRoutes } from './routes/upload.js'
 import { documentosRoutes } from './routes/documentos.js'
+import { configuracoesRoutes } from './routes/configuracoes.js'
 
 const app = Fastify({ logger: true })
 
@@ -45,6 +46,7 @@ await app.register(adminRoutes, { prefix: '/admin' })
 await app.register(projetosRoutes, { prefix: '/projetos' })
 await app.register(uploadRoutes, { prefix: '/upload' })
 await app.register(documentosRoutes, { prefix: '/documentos' })
+await app.register(configuracoesRoutes)
 
 // Health check
 app.get('/health', async () => ({ status: 'ok' }))
