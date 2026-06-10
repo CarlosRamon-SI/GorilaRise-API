@@ -100,6 +100,9 @@ enum Role {
   USUARIO
   TREINADOR
   ADMIN
+  PROFESSOR
+  NUTRICIONISTA
+  SOCIO_TORCEDOR
 }
 
 enum StatusMatricula {
