@@ -57,9 +57,11 @@ export async function checkinRoutes(app: FastifyInstance) {
   app.get('/checkin/historico', { preHandler: requireAuth }, async (request) => {
     const { sub } = request.user as { sub: number }
     const { inicio, fim } = request.query as { inicio?: string; fim?: string }
-    const dataInicio = inicio ? new Date(inicio) : (() => { const d = new Date(); d.setDate(d.getDate() - 30); d.setHours(0,0,0,0); return d })()
-    const dataFim    = fim    ? new Date(fim)    : new Date()
-    dataFim.setHours(23, 59, 59, 999)
+    const dataInicio = inicio
+      ? new Date(inicio + 'T00:00:00')
+      : (() => { const d = new Date(); d.setDate(d.getDate() - 30); d.setHours(0,0,0,0); return d })()
+    const dataFim = fim ? new Date(fim + 'T23:59:59') : new Date()
+    if (!fim) dataFim.setHours(23, 59, 59, 999)
 
     const checkins = await prisma.checkIn.findMany({
       where: { usuarioId: sub, data: { gte: dataInicio, lte: dataFim } },
@@ -93,8 +95,8 @@ export async function checkinRoutes(app: FastifyInstance) {
 export async function checkinAdminRoutes(app: FastifyInstance) {
   app.get('/checkin', { preHandler: requireTreinador }, async (request) => {
     const { data } = request.query as { data?: string }
-    const dia = data ? new Date(data) : new Date()
-    dia.setHours(0, 0, 0, 0)
+    // parse as local time to avoid UTC offset shifting the date to the previous day
+    const dia = data ? new Date(data + 'T00:00:00') : (() => { const d = new Date(); d.setHours(0,0,0,0); return d })()
 
     const turmas = await prisma.turma.findMany({
       where: { ativa: true },
