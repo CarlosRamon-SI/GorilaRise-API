@@ -1,11 +1,12 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { requireAdmin } from '../middleware/auth.js'
+import { requireAdmin, requireAuth } from '../middleware/auth.js'
 
 export async function notificacoesRoutes(app: FastifyInstance) {
-  app.get('/notificacoes', { preHandler: requireAdmin }, async () => {
-    return prisma.notificacao.findMany({ orderBy: { criadoEm: 'desc' } })
+  // Leitura pública para todos autenticados (broadcast)
+  app.get('/notificacoes', { preHandler: requireAuth }, async () => {
+    return prisma.notificacao.findMany({ orderBy: { criadoEm: 'desc' }, take: 50 })
   })
 
   app.post('/notificacoes', { preHandler: requireAdmin }, async (request, reply) => {

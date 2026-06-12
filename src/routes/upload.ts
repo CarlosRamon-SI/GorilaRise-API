@@ -3,14 +3,14 @@ import { pipeline } from 'stream/promises'
 import { createWriteStream } from 'fs'
 import { randomUUID } from 'crypto'
 import path from 'path'
-import { requireAdmin } from '../middleware/auth.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const UPLOADS_DIR = path.resolve('uploads')
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function uploadRoutes(app: FastifyInstance) {
-  app.post('/', { preHandler: requireAdmin }, async (request, reply) => {
+  app.post('/', { preHandler: requireAuth }, async (request, reply) => {
     const data = await request.file()
 
     if (!data) return reply.status(400).send({ error: 'Nenhum arquivo enviado' })
@@ -33,7 +33,8 @@ export async function uploadRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Arquivo muito grande. Máximo 5MB.' })
     }
 
-    const url = `/uploads/${filename}`
-    return { url }
+    const base = (process.env.BASE_URL ?? 'https://evo.adtecnologia.com.br').replace(/\/$/, '')
+    const url = `${base}/uploads/${filename}`
+    return { url, nome: data.filename }
   })
 }

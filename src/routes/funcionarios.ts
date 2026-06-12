@@ -3,41 +3,66 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin, requireTreinador } from '../middleware/auth.js'
 
-const schema = z.object({
-  nome:   z.string().min(2),
-  email:  z.string().email(),
-  cref:   z.string().optional().default(''),
-  funcao: z.enum(['PROFESSOR', 'NUTRICIONISTA', 'FISIOTERAPEUTA']).default('PROFESSOR'),
-  ativo:  z.boolean().optional(),
+const baseSchema = z.object({
+  nome:      z.string().min(2),
+  email:     z.string().email(),
+  cref:      z.string().optional().default(''),
+  funcao:    z.enum(['PROFESSOR', 'NUTRICIONISTA', 'FISIOTERAPEUTA']).default('PROFESSOR'),
+  ativo:     z.boolean().optional(),
+  usuarioId: z.number().int().positive().nullable().optional(),
 })
+
+const usuarioSelect = { id: true, nome: true, email: true, role: true } as const
 
 export async function funcionariosRoutes(app: FastifyInstance) {
   app.get('/funcionarios', { preHandler: requireTreinador }, async () => {
-    return prisma.funcionario.findMany({ orderBy: { nome: 'asc' } })
+    return prisma.funcionario.findMany({
+      orderBy: { nome: 'asc' },
+      include: { usuario: { select: usuarioSelect } },
+    })
   })
 
   app.post('/funcionarios', { preHandler: requireAdmin }, async (request, reply) => {
-    const result = schema.safeParse(request.body)
+    const result = baseSchema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+
+    if (result.data.usuarioId) {
+      const u = await prisma.usuario.findFirst({ where: { id: result.data.usuarioId, role: 'TREINADOR' } })
+      if (!u) return reply.status(400).send({ error: 'Usuário vinculado deve ter role TREINADOR.' })
+    }
+
     try {
-      const f = await prisma.funcionario.create({ data: result.data })
+      const f = await prisma.funcionario.create({
+        data: result.data,
+        include: { usuario: { select: usuarioSelect } },
+      })
       return reply.status(201).send(f)
     } catch (e: any) {
-      if (e.code === 'P2002') return reply.status(409).send({ error: 'E-mail já em uso.' })
+      if (e.code === 'P2002') return reply.status(409).send({ error: 'E-mail ou usuário já em uso.' })
       throw e
     }
   })
 
   app.patch('/funcionarios/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const result = schema.partial().safeParse(request.body)
+    const result = baseSchema.partial().safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+
+    if (result.data.usuarioId) {
+      const u = await prisma.usuario.findFirst({ where: { id: result.data.usuarioId, role: 'TREINADOR' } })
+      if (!u) return reply.status(400).send({ error: 'Usuário vinculado deve ter role TREINADOR.' })
+    }
+
     try {
-      const f = await prisma.funcionario.update({ where: { id: Number(id) }, data: result.data })
+      const f = await prisma.funcionario.update({
+        where: { id: Number(id) },
+        data: result.data,
+        include: { usuario: { select: usuarioSelect } },
+      })
       return f
     } catch (e: any) {
       if (e.code === 'P2025') return reply.status(404).send({ error: 'Não encontrado.' })
-      if (e.code === 'P2002') return reply.status(409).send({ error: 'E-mail já em uso.' })
+      if (e.code === 'P2002') return reply.status(409).send({ error: 'E-mail ou usuário já em uso.' })
       throw e
     }
   })

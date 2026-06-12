@@ -1,6 +1,10 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 
-type JwtPayload = { sub: number; role: 'USUARIO' | 'TREINADOR' | 'ADMIN' }
+type JwtPayload = {
+  sub: number
+  role: 'ATLETA' | 'TREINADOR' | 'ADMIN' | 'SOCIO_TORCEDOR'
+  funcao?: 'PROFESSOR' | 'NUTRICIONISTA' | 'FISIOTERAPEUTA'
+}
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   try {

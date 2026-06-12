@@ -24,7 +24,7 @@ import { patrocinadoresRoutes } from './routes/patrocinadores.js'
 import { notificacoesRoutes } from './routes/notificacoes.js'
 import { fotosRoutes } from './routes/fotos.js'
 import { prontuarioRoutes } from './routes/prontuario.js'
-import { treinosRoutes } from './routes/treinos.js'
+import { treinosRoutes, fichaAtletaRoutes } from './routes/treinos.js'
 import { financeiroRoutes } from './routes/financeiro.js'
 
 const app = Fastify({ logger: true })
@@ -71,6 +71,7 @@ await app.register(notificacoesRoutes)
 await app.register(fotosRoutes)
 await app.register(prontuarioRoutes)
 await app.register(treinosRoutes, { prefix: '/treinos' })
+await app.register(fichaAtletaRoutes)
 await app.register(financeiroRoutes)
 
 // Health check

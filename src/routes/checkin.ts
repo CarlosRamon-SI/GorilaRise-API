@@ -53,6 +53,28 @@ export async function checkinRoutes(app: FastifyInstance) {
     }
   })
 
+  // Atleta: histórico de check-ins
+  app.get('/checkin/historico', { preHandler: requireAuth }, async (request) => {
+    const { sub } = request.user as { sub: number }
+    const { inicio, fim } = request.query as { inicio?: string; fim?: string }
+    const dataInicio = inicio ? new Date(inicio) : (() => { const d = new Date(); d.setDate(d.getDate() - 30); d.setHours(0,0,0,0); return d })()
+    const dataFim    = fim    ? new Date(fim)    : new Date()
+    dataFim.setHours(23, 59, 59, 999)
+
+    const checkins = await prisma.checkIn.findMany({
+      where: { usuarioId: sub, data: { gte: dataInicio, lte: dataFim } },
+      include: { turma: { select: { codigo: true, horario: true, descricao: true } } },
+      orderBy: { data: 'desc' },
+    })
+    return checkins.map(c => ({
+      id:       c.id,
+      data:     c.data.toISOString().slice(0, 10),
+      turma:    c.turma.codigo,
+      horario:  c.turma.horario,
+      descricao: c.turma.descricao ?? c.turma.codigo,
+    }))
+  })
+
   // Atleta: cancelar check-in
   app.delete('/checkin/:turmaId', { preHandler: requireAuth }, async (request, reply) => {
     const { sub } = request.user as { sub: number }
@@ -67,29 +89,36 @@ export async function checkinRoutes(app: FastifyInstance) {
   })
 }
 
-// Rota admin: listar check-ins por data agrupados por turma
+// Rota admin: todas as turmas ativas com check-ins do dia embutidos
 export async function checkinAdminRoutes(app: FastifyInstance) {
-  app.get('/checkin', { preHandler: requireTreinador }, async (request, reply) => {
+  app.get('/checkin', { preHandler: requireTreinador }, async (request) => {
     const { data } = request.query as { data?: string }
     const dia = data ? new Date(data) : new Date()
     dia.setHours(0, 0, 0, 0)
 
-    const checkins = await prisma.checkIn.findMany({
-      where: { data: dia },
+    const turmas = await prisma.turma.findMany({
+      where: { ativa: true },
+      orderBy: { horario: 'asc' },
       include: {
-        usuario: { select: { nome: true, email: true } },
-        turma:   { select: { codigo: true, horario: true } },
+        checkIns: {
+          where: { data: dia },
+          include: { usuario: { select: { nome: true, email: true } } },
+          orderBy: { criadoEm: 'asc' },
+        },
       },
-      orderBy: { criadoEm: 'asc' },
     })
 
-    return checkins.map(c => ({
-      id:          c.id,
-      atletaNome:  c.usuario.nome,
-      atletaEmail: c.usuario.email,
-      turma:       c.turma.codigo,
-      horario:     c.turma.horario,
-      data:        c.data.toISOString().slice(0, 10),
+    return turmas.map(t => ({
+      id:         t.id,
+      codigo:     t.codigo,
+      horario:    t.horario,
+      descricao:  t.descricao ?? t.codigo,
+      capacidade: t.capacidade,
+      checkins:   t.checkIns.map(c => ({
+        id:          c.id,
+        atletaNome:  c.usuario.nome,
+        atletaEmail: c.usuario.email,
+      })),
     }))
   })
 }

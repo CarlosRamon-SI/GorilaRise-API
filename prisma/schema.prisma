@@ -18,18 +18,25 @@ model Usuario {
   cidade       String
   cep          String
   senha        String
-  role         Role          @default(USUARIO)
+  role         Role          @default(ATLETA)
+  funcao       FuncaoFuncionario?
   ativo        Boolean       @default(true)
+  fotoPerfil   String?
   criadoEm     DateTime      @default(now())
   atualizadoEm DateTime      @updatedAt
 
-  matriculas    Matricula[]
-  checkIns      CheckIn[]
-  anamnese      Anamnese?
-  recordes      Recorde[]
-  fotosProgresso FotoProgresso[]
-  biometria     Biometria?
-  prontuarioDocs ProntuarioDoc[]
+  matriculas           Matricula[]
+  matriculasResponsavel Matricula[]     @relation("MatriculaResponsavel")
+  premiacoes           Premiacao[]     @relation("PremiacaoAtleta")
+  checkIns             CheckIn[]
+  anamnese             Anamnese?
+  recordes             Recorde[]
+  fotosProgresso       FotoProgresso[]
+  biometria            Biometria?
+  prontuarioDocs       ProntuarioDoc[]
+  treinosPrescritos    TreinoPrescrito[]
+  wodsAutor            WOD[]
+  funcionario          Funcionario?
 }
 
 model Modalidade {
@@ -53,16 +60,19 @@ model Plano {
 }
 
 model Matricula {
-  id           Int             @id @default(autoincrement())
-  usuarioId    Int
-  modalidadeId Int
-  planoId      Int
-  status       StatusMatricula @default(ATIVA)
-  criadoEm     DateTime        @default(now())
+  id             Int             @id @default(autoincrement())
+  usuarioId      Int
+  modalidadeId   Int
+  planoId        Int
+  responsavelId  Int?
+  status         StatusMatricula @default(ATIVA)
+  dataPagamento  DateTime?
+  criadoEm       DateTime        @default(now())
 
   usuario    Usuario    @relation(fields: [usuarioId], references: [id])
   modalidade Modalidade @relation(fields: [modalidadeId], references: [id])
   plano      Plano      @relation(fields: [planoId], references: [id])
+  responsavel Usuario?  @relation("MatriculaResponsavel", fields: [responsavelId], references: [id])
 }
 
 model ProjetoSocial {
@@ -97,11 +107,9 @@ model Lead {
 }
 
 enum Role {
-  USUARIO
+  ATLETA
   TREINADOR
   ADMIN
-  PROFESSOR
-  NUTRICIONISTA
   SOCIO_TORCEDOR
 }
 
@@ -135,10 +143,13 @@ model Premiacao {
   titulo      String
   descricao   String?   @db.Text
   atletaNome  String    @default("")
+  atletaId    Int?
   data        DateTime? @db.Date
   imagemUrl   String?
   ativo       Boolean   @default(true)
   criadoEm    DateTime  @default(now())
+
+  atleta      Usuario?  @relation("PremiacaoAtleta", fields: [atletaId], references: [id])
 }
 
 model Patrocinador {
@@ -186,7 +197,10 @@ model Funcionario {
   cref      String            @default("")
   funcao    FuncaoFuncionario @default(PROFESSOR)
   ativo     Boolean           @default(true)
+  usuarioId Int?              @unique
   criadoEm  DateTime          @default(now())
+
+  usuario   Usuario?          @relation(fields: [usuarioId], references: [id])
 }
 
 model Turma {
@@ -294,13 +308,19 @@ model WOD {
   descricao  String?
   exercicios String?  @db.Text
   data       DateTime @db.Date
+  autorId    Int?
   criadoEm   DateTime @default(now())
+
+  autor      Usuario? @relation(fields: [autorId], references: [id])
 }
 
 model TreinoPrescrito {
   id         Int      @id @default(autoincrement())
   atletaNome String
+  atletaId   Int?
   titulo     String
   exercicios String?  @db.Text
   criadoEm   DateTime @default(now())
+
+  atleta     Usuario? @relation(fields: [atletaId], references: [id])
 }

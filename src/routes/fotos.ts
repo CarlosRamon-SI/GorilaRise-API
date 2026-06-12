@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireTreinador } from '../middleware/auth.js'
 
 export async function fotosRoutes(app: FastifyInstance) {
   app.get('/fotos-progresso', { preHandler: requireAuth }, async (request) => {
@@ -14,6 +14,20 @@ export async function fotosRoutes(app: FastifyInstance) {
       },
       orderBy: { criadoEm: 'asc' },
     })
+  })
+
+  // Admin/treinador: ver fotos de um atleta específico
+  app.get('/fotos-progresso/:userId', { preHandler: requireTreinador }, async (request, reply) => {
+    const { userId } = request.params as { userId: string }
+    const { tipo } = request.query as { tipo?: string }
+    const fotos = await prisma.fotoProgresso.findMany({
+      where: {
+        usuarioId: Number(userId),
+        ...(tipo ? { tipo: tipo as 'INICIAL' | 'PROGRESSO' } : {}),
+      },
+      orderBy: { criadoEm: 'asc' },
+    })
+    return fotos
   })
 
   app.post('/fotos-progresso', { preHandler: requireAuth }, async (request, reply) => {

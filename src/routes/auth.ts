@@ -13,8 +13,7 @@ const cadastroSchema = z.object({
   cidade: z.string().min(2),
   cep: z.string().regex(/^\d{5}-\d{3}$/),
   senha: z.string().min(8),
-  modalidadeId: z.number().int().positive(),
-  planoId: z.number().int().positive(),
+  planoId: z.number().int().positive().optional(),
 })
 
 const loginSchema = z.object({
@@ -61,17 +60,11 @@ export async function authRoutes(app: FastifyInstance) {
         cidade: data.cidade,
         cep: data.cep,
         senha: hash,
-        matriculas: {
-          create: {
-            modalidadeId: data.modalidadeId,
-            planoId: data.planoId,
-          },
-        },
       },
-      select: { id: true, nome: true, email: true, role: true },
+      select: { id: true, nome: true, email: true, role: true, funcao: true },
     })
 
-    const token = app.jwt.sign({ sub: usuario.id, role: usuario.role }, { expiresIn: '7d' })
+    const token = app.jwt.sign({ sub: usuario.id, role: usuario.role, funcao: usuario.funcao ?? undefined }, { expiresIn: '7d' })
 
     return reply.status(201).send({ usuario, token })
   })
@@ -93,9 +86,9 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'Conta inativa' })
     }
 
-    const token = app.jwt.sign({ sub: usuario.id, role: usuario.role }, { expiresIn: '7d' })
+    const token = app.jwt.sign({ sub: usuario.id, role: usuario.role, funcao: usuario.funcao ?? undefined }, { expiresIn: '7d' })
 
-    return { usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role }, token }
+    return { usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role, funcao: usuario.funcao ?? undefined }, token }
   })
 
   app.get('/me', { preHandler: async (req, rep) => { try { await req.jwtVerify() } catch { rep.status(401).send({ error: 'Não autorizado' }) } } }, async (request) => {
@@ -103,7 +96,7 @@ export async function authRoutes(app: FastifyInstance) {
     const usuario = await prisma.usuario.findUnique({
       where: { id: payload.sub },
       select: {
-        id: true, nome: true, email: true, role: true, criadoEm: true,
+        id: true, nome: true, email: true, role: true, funcao: true, criadoEm: true, fotoPerfil: true,
         matriculas: {
           where: { status: 'ATIVA' },
           include: { modalidade: true, plano: true },
@@ -111,5 +104,23 @@ export async function authRoutes(app: FastifyInstance) {
       },
     })
     return usuario
+  })
+
+  const jwtPreHandler = async (req: any, rep: any) => {
+    try { await req.jwtVerify() } catch { rep.status(401).send({ error: 'Não autorizado' }) }
+  }
+
+  app.patch('/me', { preHandler: jwtPreHandler }, async (request, reply) => {
+    const payload = request.user as { sub: number }
+    const schema = z.object({ fotoPerfil: z.string().url().optional() })
+    const result = schema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+
+    const updated = await prisma.usuario.update({
+      where: { id: payload.sub },
+      data: result.data,
+      select: { id: true, nome: true, email: true, role: true, fotoPerfil: true },
+    })
+    return updated
   })
 }
