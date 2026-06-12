@@ -4,16 +4,27 @@ import { prisma } from '../lib/prisma.js'
 import { requireAdmin, requireAuth } from '../middleware/auth.js'
 
 export async function notificacoesRoutes(app: FastifyInstance) {
-  // Leitura pública para todos autenticados (broadcast)
-  app.get('/notificacoes', { preHandler: requireAuth }, async () => {
-    return prisma.notificacao.findMany({ orderBy: { criadoEm: 'desc' }, take: 50 })
+  // Leitura filtrada por role do usuário logado
+  app.get('/notificacoes', { preHandler: requireAuth }, async (request) => {
+    const { role } = request.user as { sub: number; role: string }
+    return prisma.notificacao.findMany({
+      where: {
+        OR: [
+          { destinatarioRole: null },
+          { destinatarioRole: role },
+        ],
+      },
+      orderBy: { criadoEm: 'desc' },
+      take: 50,
+    })
   })
 
   app.post('/notificacoes', { preHandler: requireAdmin }, async (request, reply) => {
     const schema = z.object({
-      titulo: z.string().min(1),
-      corpo:  z.string().min(1),
-      tipo:   z.enum(['AVISO', 'EVENTO', 'COMUNICADO']).default('AVISO'),
+      titulo:           z.string().min(1),
+      corpo:            z.string().min(1),
+      tipo:             z.enum(['AVISO', 'EVENTO', 'COMUNICADO']).default('AVISO'),
+      destinatarioRole: z.enum(['ATLETA', 'TREINADOR', 'ADMIN', 'SOCIO_TORCEDOR']).nullable().optional(),
     })
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
