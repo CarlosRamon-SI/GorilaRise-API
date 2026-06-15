@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, assertMatriculaAtiva } from '../middleware/auth.js'
 
 const anamneseSchema = z.object({
   nomeCompleto:              z.string().optional(),
@@ -67,6 +67,7 @@ export async function anamneseRoutes(app: FastifyInstance) {
 
   app.post('/anamnese', { preHandler: requireAuth }, async (request, reply) => {
     const { sub } = request.user as { sub: number }
+    if (!await assertMatriculaAtiva(sub, reply)) return
     const result = anamneseSchema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
 

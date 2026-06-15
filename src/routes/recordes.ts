@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, assertMatriculaAtiva } from '../middleware/auth.js'
 
 export async function recordesRoutes(app: FastifyInstance) {
   app.get('/recordes', { preHandler: requireAuth }, async (request) => {
@@ -20,6 +20,7 @@ export async function recordesRoutes(app: FastifyInstance) {
 
   app.post('/recordes', { preHandler: requireAuth }, async (request, reply) => {
     const { sub } = request.user as { sub: number }
+    if (!await assertMatriculaAtiva(sub, reply)) return
     const schema = z.object({
       exercicio: z.string().min(1),
       carga:     z.string().min(1),

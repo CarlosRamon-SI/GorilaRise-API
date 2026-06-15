@@ -1,8 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { requireAuth } from '../middleware/auth.js'
-import { requireTreinador } from '../middleware/auth.js'
+import { requireAuth, requireTreinador, assertMatriculaAtiva } from '../middleware/auth.js'
 
 export async function checkinRoutes(app: FastifyInstance) {
   // Atleta: listar turmas com status de check-in do dia atual
@@ -35,6 +34,7 @@ export async function checkinRoutes(app: FastifyInstance) {
   // Atleta: fazer check-in
   app.post('/checkin', { preHandler: requireAuth }, async (request, reply) => {
     const { sub } = request.user as { sub: number }
+    if (!await assertMatriculaAtiva(sub, reply)) return
     const schema = z.object({ turmaId: z.number().int().positive() })
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, assertMatriculaAtiva } from '../middleware/auth.js'
 
 export async function prontuarioRoutes(app: FastifyInstance) {
   app.get('/prontuario', { preHandler: requireAuth }, async (request) => {
@@ -18,8 +18,9 @@ export async function prontuarioRoutes(app: FastifyInstance) {
     }
   })
 
-  app.post('/prontuario', { preHandler: requireAuth }, async (request) => {
+  app.post('/prontuario', { preHandler: requireAuth }, async (request, reply) => {
     const { sub } = request.user as { sub: number }
+    if (!await assertMatriculaAtiva(sub, reply)) return
     const schema = z.object({
       peso:            z.string().optional().default(''),
       altura:          z.string().optional().default(''),
@@ -38,6 +39,7 @@ export async function prontuarioRoutes(app: FastifyInstance) {
 
   app.post('/prontuario/documentos', { preHandler: requireAuth }, async (request, reply) => {
     const { sub } = request.user as { sub: number }
+    if (!await assertMatriculaAtiva(sub, reply)) return
     const schema = z.object({
       url:  z.string().min(1),
       nome: z.string().min(1),

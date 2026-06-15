@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import { prisma } from '../lib/prisma.js'
-import { requireAdmin, requireTreinador } from '../middleware/auth.js'
+import { requireAdmin, requireTreinador, assertMatriculaAtiva } from '../middleware/auth.js'
 
 export async function adminRoutes(app: FastifyInstance) {
   // Stats
@@ -23,11 +23,12 @@ export async function adminRoutes(app: FastifyInstance) {
 
   // Listar usuários
   app.get('/usuarios', { preHandler: requireTreinador }, async (request) => {
-    const { role, ativo } = request.query as { role?: string; ativo?: string }
+    const { role, ativo, comMatriculaAtiva } = request.query as { role?: string; ativo?: string; comMatriculaAtiva?: string }
     return prisma.usuario.findMany({
       where: {
         ...(role ? { role: role as any } : {}),
         ...(ativo !== undefined ? { ativo: ativo === 'true' } : {}),
+        ...(comMatriculaAtiva === 'true' ? { matriculas: { some: { status: 'ATIVA' } } } : {}),
       },
       select: {
         id: true, nome: true, email: true, cpf: true,
@@ -412,6 +413,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const schema = z.object({ atletaId: z.number().int().positive() })
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+    if (!await assertMatriculaAtiva(result.data.atletaId, reply)) return
     try {
       await prisma.turmaAtleta.create({
         data: { turmaId: Number(id), atletaId: result.data.atletaId },

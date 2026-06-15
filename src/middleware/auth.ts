@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { prisma } from '../lib/prisma.js'
 
 type JwtPayload = {
   sub: number
@@ -36,4 +37,15 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
   } catch {
     reply.status(401).send({ error: 'Não autorizado' })
   }
+}
+
+export async function assertMatriculaAtiva(userId: number, reply: FastifyReply): Promise<boolean> {
+  const m = await prisma.matricula.findFirst({
+    where: { usuarioId: userId, status: 'ATIVA' },
+  })
+  if (!m) {
+    reply.status(403).send({ error: 'Você não possui matrícula ativa.' })
+    return false
+  }
+  return true
 }
