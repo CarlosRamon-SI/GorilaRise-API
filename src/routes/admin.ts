@@ -272,23 +272,46 @@ export async function adminRoutes(app: FastifyInstance) {
   // ── Turmas CRUD ───────────────────────────────────────────────────────────────
 
   app.get('/turmas', { preHandler: requireTreinador }, async () => {
-    return prisma.turma.findMany({ orderBy: { codigo: 'asc' } })
+    return prisma.turma.findMany({
+      orderBy: { codigo: 'asc' },
+      include: {
+        ambiente: true,
+        treinador: { select: { id: true, nome: true } },
+      },
+    })
   })
 
   app.post('/turmas', { preHandler: requireAdmin }, async (request, reply) => {
     const schema = z.object({
-      codigo:     z.string().min(1),
-      horario:    z.string().min(1),
-      dias:       z.array(z.string()),
-      tipo:       z.string().default('regular'),
-      descricao:  z.string().optional(),
-      faixaIdade: z.string().optional(),
-      capacidade: z.number().int().positive().default(6),
+      codigo:      z.string().min(1),
+      horario:     z.string().min(1),
+      dias:        z.array(z.string()),
+      tipo:        z.string().default('regular'),
+      descricao:   z.string().optional(),
+      faixaIdade:  z.string().optional(),
+      capacidade:  z.number().int().positive().default(6),
+      ambienteId:  z.number().int().positive().nullable().optional(),
+      treinadorId: z.number().int().positive().nullable().optional(),
+      status:      z.enum(['PROPOSTA', 'PENDENTE_APROVACAO', 'ATIVA', 'INATIVA']).default('ATIVA'),
     })
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+
+    if (result.data.ambienteId) {
+      const amb = await prisma.ambiente.findUnique({ where: { id: result.data.ambienteId } })
+      if (amb && result.data.capacidade > amb.capacidade) {
+        return reply.status(400).send({ error: `Capacidade da turma (${result.data.capacidade}) excede a do ambiente (${amb.capacidade}).` })
+      }
+    }
+
     try {
-      const turma = await prisma.turma.create({ data: result.data })
+      const turma = await prisma.turma.create({
+        data: result.data,
+        include: {
+          ambiente: true,
+          treinador: { select: { id: true, nome: true } },
+        },
+      })
       return reply.status(201).send(turma)
     } catch (e: any) {
       if (e.code === 'P2002') return reply.status(409).send({ error: 'Código de turma já em uso.' })
@@ -299,18 +322,61 @@ export async function adminRoutes(app: FastifyInstance) {
   app.patch('/turmas/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const schema = z.object({
-      horario:    z.string().optional(),
-      dias:       z.array(z.string()).optional(),
-      tipo:       z.string().optional(),
-      descricao:  z.string().optional(),
-      faixaIdade: z.string().optional(),
-      capacidade: z.number().int().positive().optional(),
-      ativa:      z.boolean().optional(),
+      horario:     z.string().optional(),
+      dias:        z.array(z.string()).optional(),
+      tipo:        z.string().optional(),
+      descricao:   z.string().optional(),
+      faixaIdade:  z.string().optional(),
+      capacidade:  z.number().int().positive().optional(),
+      ambienteId:  z.number().int().positive().nullable().optional(),
+      treinadorId: z.number().int().positive().nullable().optional(),
+      status:      z.enum(['PROPOSTA', 'PENDENTE_APROVACAO', 'ATIVA', 'INATIVA']).optional(),
+      ativa:       z.boolean().optional(), // aceito mas ignorado (backward-compat)
+    })
+    const result = schema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+
+    const { ativa: _ignored, ...data } = result.data
+
+    if (data.ambienteId && data.capacidade) {
+      const amb = await prisma.ambiente.findUnique({ where: { id: data.ambienteId } })
+      if (amb && data.capacidade > amb.capacidade) {
+        return reply.status(400).send({ error: `Capacidade da turma (${data.capacidade}) excede a do ambiente (${amb.capacidade}).` })
+      }
+    }
+
+    try {
+      return prisma.turma.update({
+        where: { id: Number(id) },
+        data,
+        include: {
+          ambiente: true,
+          treinador: { select: { id: true, nome: true } },
+        },
+      })
+    } catch (e: any) {
+      if (e.code === 'P2025') return reply.status(404).send({ error: 'Turma não encontrada.' })
+      throw e
+    }
+  })
+
+  // Aprovar / rejeitar turma criada por treinador
+  app.patch('/turmas/:id/status', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const schema = z.object({
+      status: z.enum(['PROPOSTA', 'PENDENTE_APROVACAO', 'ATIVA', 'INATIVA']),
     })
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
     try {
-      return prisma.turma.update({ where: { id: Number(id) }, data: result.data })
+      return prisma.turma.update({
+        where: { id: Number(id) },
+        data: { status: result.data.status },
+        include: {
+          ambiente: true,
+          treinador: { select: { id: true, nome: true } },
+        },
+      })
     } catch (e: any) {
       if (e.code === 'P2025') return reply.status(404).send({ error: 'Turma não encontrada.' })
       throw e
@@ -327,5 +393,76 @@ export async function adminRoutes(app: FastifyInstance) {
       if (e.code === 'P2003') return reply.status(409).send({ error: 'Turma possui check-ins registrados.' })
       throw e
     }
+  })
+
+  // ── Atletas de uma turma ──────────────────────────────────────────────────────
+
+  app.get('/turmas/:id/atletas', { preHandler: requireTreinador }, async (request) => {
+    const { id } = request.params as { id: string }
+    const registros = await prisma.turmaAtleta.findMany({
+      where: { turmaId: Number(id) },
+      include: { atleta: { select: { id: true, nome: true, email: true } } },
+      orderBy: { criadoEm: 'asc' },
+    })
+    return registros.map(r => ({ ...r.atleta, vinculadoEm: r.criadoEm }))
+  })
+
+  app.post('/turmas/:id/atletas', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const schema = z.object({ atletaId: z.number().int().positive() })
+    const result = schema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+    try {
+      await prisma.turmaAtleta.create({
+        data: { turmaId: Number(id), atletaId: result.data.atletaId },
+      })
+      return reply.status(201).send({ ok: true })
+    } catch (e: any) {
+      if (e.code === 'P2002') return reply.status(409).send({ error: 'Atleta já vinculado a esta turma.' })
+      throw e
+    }
+  })
+
+  app.delete('/turmas/:id/atletas/:atletaId', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id, atletaId } = request.params as { id: string; atletaId: string }
+    await prisma.turmaAtleta.deleteMany({
+      where: { turmaId: Number(id), atletaId: Number(atletaId) },
+    })
+    return reply.status(204).send()
+  })
+
+  // ── Modalidades de um treinador ───────────────────────────────────────────────
+
+  app.get('/treinadores/:id/modalidades', { preHandler: requireTreinador }, async (request) => {
+    const { id } = request.params as { id: string }
+    const registros = await prisma.treinadorModalidade.findMany({
+      where: { treinadorId: Number(id) },
+      include: { modalidade: true },
+    })
+    return registros.map(r => r.modalidade)
+  })
+
+  app.post('/treinadores/:id/modalidades', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const schema = z.object({ modalidadeId: z.number().int().positive() })
+    const result = schema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+    try {
+      await prisma.treinadorModalidade.create({
+        data: { treinadorId: Number(id), modalidadeId: result.data.modalidadeId },
+      })
+      return reply.status(201).send({ ok: true })
+    } catch (e: any) {
+      if (e.code === 'P2002') return reply.status(409).send({ error: 'Modalidade já associada a este treinador.' })
+      throw e
+    }
+  })
+
+  app.delete('/treinadores/:id/modalidades/:modalidadeId', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id, modalidadeId } = request.params as { id: string; modalidadeId: string }
+    await prisma.treinadorModalidade.deleteMany({
+      where: { treinadorId: Number(id), modalidadeId: Number(modalidadeId) },
+    })
+    return reply.status(204).send()
   })
 }

@@ -39,6 +39,9 @@ model Usuario {
   funcionario           Funcionario?
   ingressos             Ingresso[]
   pontosSocio           PontoSocio[]
+  turmaTreinador        Turma[]               @relation("TurmaTreinador")
+  turmasAtleta          TurmaAtleta[]
+  modalidadesTreinador  TreinadorModalidade[] @relation("TreinadorModalidades")
 }
 
 model Modalidade {
@@ -48,7 +51,8 @@ model Modalidade {
   categoria String
   ativa     Boolean     @default(true)
 
-  matriculas Matricula[]
+  matriculas  Matricula[]
+  treinadores TreinadorModalidade[]
 }
 
 model Plano {
@@ -119,6 +123,13 @@ enum StatusMatricula {
   ATIVA
   INATIVA
   PENDENTE
+}
+
+enum StatusTurma {
+  PROPOSTA
+  PENDENTE_APROVACAO
+  ATIVA
+  INATIVA
 }
 
 enum FuncaoFuncionario {
@@ -242,17 +253,53 @@ model Funcionario {
   usuario   Usuario?          @relation(fields: [usuarioId], references: [id])
 }
 
-model Turma {
-  id         Int       @id @default(autoincrement())
-  codigo     String    @unique
-  horario    String
-  dias       Json
-  tipo       String    @default("regular")
+model Ambiente {
+  id         Int     @id @default(autoincrement())
+  nome       String
   descricao  String?
-  faixaIdade String?
-  capacidade Int       @default(6)
-  ativa      Boolean   @default(true)
-  checkIns   CheckIn[]
+  capacidade Int     @default(20)
+  ativo      Boolean @default(true)
+  turmas     Turma[]
+}
+
+model TurmaAtleta {
+  turmaId  Int
+  atletaId Int
+  criadoEm DateTime @default(now())
+
+  turma  Turma   @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  atleta Usuario @relation(fields: [atletaId], references: [id])
+
+  @@id([turmaId, atletaId])
+}
+
+model TreinadorModalidade {
+  treinadorId  Int
+  modalidadeId Int
+
+  treinador  Usuario    @relation("TreinadorModalidades", fields: [treinadorId], references: [id])
+  modalidade Modalidade @relation(fields: [modalidadeId], references: [id])
+
+  @@id([treinadorId, modalidadeId])
+}
+
+model Turma {
+  id          Int         @id @default(autoincrement())
+  codigo      String      @unique
+  horario     String
+  dias        Json
+  tipo        String      @default("regular")
+  descricao   String?
+  faixaIdade  String?
+  capacidade  Int         @default(6)
+  status      StatusTurma @default(ATIVA)
+  ambienteId  Int?
+  treinadorId Int?
+
+  ambiente  Ambiente?     @relation(fields: [ambienteId], references: [id])
+  treinador Usuario?      @relation("TurmaTreinador", fields: [treinadorId], references: [id])
+  checkIns  CheckIn[]
+  atletas   TurmaAtleta[]
 }
 
 model CheckIn {

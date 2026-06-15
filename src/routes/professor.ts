@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireTreinador } from '../middleware/auth.js'
 
@@ -64,6 +65,79 @@ export async function professorRoutes(app: FastifyInstance) {
         criadoEm:              a.anamnese.criadoEm.toISOString().slice(0, 10),
       } : null,
     }))
+  })
+
+  // ── Turmas do treinador ──────────────────────────────────────────────────────
+
+  app.get('/turmas', { preHandler: requireTreinador }, async (request) => {
+    const { sub } = request.user as { sub: number }
+    return prisma.turma.findMany({
+      where: { treinadorId: sub },
+      orderBy: { horario: 'asc' },
+      include: {
+        ambiente: true,
+        atletas: {
+          include: { atleta: { select: { id: true, nome: true, email: true } } },
+        },
+      },
+    })
+  })
+
+  app.post('/turmas', { preHandler: requireTreinador }, async (request, reply) => {
+    const { sub } = request.user as { sub: number }
+    const schema = z.object({
+      codigo:     z.string().min(1),
+      horario:    z.string().min(1),
+      dias:       z.array(z.string()),
+      tipo:       z.string().default('regular'),
+      descricao:  z.string().optional(),
+      faixaIdade: z.string().optional(),
+      capacidade: z.number().int().positive().default(6),
+      ambienteId: z.number().int().positive().nullable().optional(),
+    })
+    const result = schema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+    try {
+      const turma = await prisma.turma.create({
+        data: { ...result.data, treinadorId: sub, status: 'PENDENTE_APROVACAO' },
+        include: {
+          ambiente: true,
+          treinador: { select: { id: true, nome: true } },
+        },
+      })
+      return reply.status(201).send(turma)
+    } catch (e: any) {
+      if (e.code === 'P2002') return reply.status(409).send({ error: 'Código de turma já em uso.' })
+      throw e
+    }
+  })
+
+  app.patch('/turmas/:id/aceitar', { preHandler: requireTreinador }, async (request, reply) => {
+    const { sub } = request.user as { sub: number }
+    const { id } = request.params as { id: string }
+    const turma = await prisma.turma.findUnique({ where: { id: Number(id) } })
+    if (!turma) return reply.status(404).send({ error: 'Turma não encontrada.' })
+    if (turma.treinadorId !== sub) return reply.status(403).send({ error: 'Esta turma não está atribuída a você.' })
+    if (turma.status !== 'PROPOSTA') return reply.status(409).send({ error: 'Turma não está aguardando aceite.' })
+    return prisma.turma.update({
+      where: { id: Number(id) },
+      data: { status: 'ATIVA' },
+      include: { ambiente: true, treinador: { select: { id: true, nome: true } } },
+    })
+  })
+
+  app.patch('/turmas/:id/rejeitar', { preHandler: requireTreinador }, async (request, reply) => {
+    const { sub } = request.user as { sub: number }
+    const { id } = request.params as { id: string }
+    const turma = await prisma.turma.findUnique({ where: { id: Number(id) } })
+    if (!turma) return reply.status(404).send({ error: 'Turma não encontrada.' })
+    if (turma.treinadorId !== sub) return reply.status(403).send({ error: 'Esta turma não está atribuída a você.' })
+    if (turma.status !== 'PROPOSTA') return reply.status(409).send({ error: 'Turma não está aguardando aceite.' })
+    return prisma.turma.update({
+      where: { id: Number(id) },
+      data: { status: 'INATIVA' },
+      include: { ambiente: true, treinador: { select: { id: true, nome: true } } },
+    })
   })
 
   // Records de um atleta específico (para o professor ver o desempenho)

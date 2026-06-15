@@ -12,7 +12,7 @@ export async function checkinRoutes(app: FastifyInstance) {
     today.setHours(0, 0, 0, 0)
 
     const [turmas, meuCheckIns] = await Promise.all([
-      prisma.turma.findMany({ where: { ativa: true }, orderBy: { horario: 'asc' } }),
+      prisma.turma.findMany({ where: { status: 'ATIVA' }, orderBy: { horario: 'asc' } }),
       prisma.checkIn.findMany({
         where: { usuarioId: sub, data: today },
         select: { turmaId: true },
@@ -99,7 +99,7 @@ export async function checkinAdminRoutes(app: FastifyInstance) {
     const dia = data ? new Date(data + 'T00:00:00') : (() => { const d = new Date(); d.setHours(0,0,0,0); return d })()
 
     const turmas = await prisma.turma.findMany({
-      where: { ativa: true },
+      where: { status: 'ATIVA' },
       orderBy: { horario: 'asc' },
       include: {
         checkIns: {
@@ -116,7 +116,7 @@ export async function checkinAdminRoutes(app: FastifyInstance) {
       horario:    t.horario,
       descricao:  t.descricao ?? t.codigo,
       capacidade: t.capacidade,
-      checkins:   t.checkIns.map(c => ({
+      checkins:   t.checkIns.map((c: any) => ({
         id:          c.id,
         atletaNome:  c.usuario.nome,
         atletaEmail: c.usuario.email,

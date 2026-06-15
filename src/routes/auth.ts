@@ -14,6 +14,7 @@ const cadastroSchema = z.object({
   cep: z.string().regex(/^\d{5}-\d{3}$/),
   senha: z.string().min(8),
   planoId: z.number().int().positive().optional(),
+  captchaToken: z.string().min(1),
 })
 
 const loginSchema = z.object({
@@ -40,6 +41,18 @@ export async function authRoutes(app: FastifyInstance) {
 
     const data = result.data
 
+    // Verificar CAPTCHA
+    const captchaSecret = process.env.HCAPTCHA_SECRET ?? ''
+    const captchaRes = await fetch('https://hcaptcha.com/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${encodeURIComponent(captchaSecret)}&response=${encodeURIComponent(data.captchaToken)}`,
+    })
+    const captchaJson = await captchaRes.json() as { success: boolean }
+    if (!captchaJson.success) {
+      return reply.status(400).send({ error: 'CAPTCHA inválido. Tente novamente.' })
+    }
+
     const existe = await prisma.usuario.findFirst({
       where: { OR: [{ email: data.email }, { cpf: data.cpf }] },
     })
@@ -49,7 +62,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const hash = await bcrypt.hash(data.senha, 10)
 
-    const usuario = await prisma.usuario.create({
+    await prisma.usuario.create({
       data: {
         nome: data.nome,
         email: data.email,
@@ -60,13 +73,12 @@ export async function authRoutes(app: FastifyInstance) {
         cidade: data.cidade,
         cep: data.cep,
         senha: hash,
+        ativo: false,
       },
-      select: { id: true, nome: true, email: true, role: true, funcao: true },
+      select: { id: true },
     })
 
-    const token = app.jwt.sign({ sub: usuario.id, role: usuario.role, funcao: usuario.funcao ?? undefined }, { expiresIn: '7d' })
-
-    return reply.status(201).send({ usuario, token })
+    return reply.status(201).send({ mensagem: 'Cadastro realizado. Aguarde a ativação pela equipe.' })
   })
 
   app.post('/login', async (request, reply) => {
