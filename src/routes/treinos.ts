@@ -33,6 +33,19 @@ export async function treinosRoutes(app: FastifyInstance) {
       data: { ...rest, data: new Date(data), autorId: sub },
       include: { autor: { select: { id: true, nome: true } } },
     })
+
+    // G6: auto-notify all athletes
+    try {
+      await prisma.notificacao.create({
+        data: {
+          titulo: 'WOD do Dia Publicado',
+          corpo: `O WOD "${wod.titulo}" foi publicado para ${wod.data.toISOString().slice(0, 10)}. Prepare-se!`,
+          tipo: 'AVISO',
+          destinatarioRole: 'ATLETA',
+        },
+      })
+    } catch { /* não bloqueia a criação do WOD */ }
+
     return reply.status(201).send({
       ...wod,
       data: wod.data.toISOString().slice(0, 10),
@@ -88,6 +101,20 @@ export async function treinosRoutes(app: FastifyInstance) {
       },
       include: { atleta: { select: { id: true, nome: true } } },
     })
+
+    // G6: auto-notify athlete
+    try {
+      await prisma.notificacao.create({
+        data: {
+          titulo: 'Nova Ficha de Treino',
+          corpo: `Seu treinador prescreveu uma nova ficha: "${t.titulo}". Acesse o painel para ver os exercícios.`,
+          tipo: 'AVISO',
+          destinatarioRole: 'ATLETA',
+          destinatarioId: result.data.atletaId,
+        },
+      })
+    } catch { /* não bloqueia a criação da ficha */ }
+
     return reply.status(201).send({ ...t, atletaNome: t.atleta?.nome ?? t.atletaNome })
   })
 

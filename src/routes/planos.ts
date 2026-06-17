@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../middleware/auth.js'
 
 const planoSchema = z.object({
-  nome: z.string().min(2),
+  nome: z.string().trim().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   valor: z.number().positive(),
   descricao: z.string().optional(),
   ativo: z.boolean().optional().default(true),

@@ -4,14 +4,15 @@ import { prisma } from '../lib/prisma.js'
 import { requireAdmin, requireAuth } from '../middleware/auth.js'
 
 export async function notificacoesRoutes(app: FastifyInstance) {
-  // Leitura filtrada por role do usuário logado
+  // Leitura filtrada por role do usuário logado + notificações direcionadas ao userId
   app.get('/notificacoes', { preHandler: requireAuth }, async (request) => {
-    const { role } = request.user as { sub: number; role: string }
+    const { sub, role } = request.user as { sub: number; role: string }
     return prisma.notificacao.findMany({
       where: {
         OR: [
-          { destinatarioRole: null },
-          { destinatarioRole: role },
+          { destinatarioRole: null, destinatarioId: null },
+          { destinatarioRole: role, destinatarioId: null },
+          { destinatarioId: sub },
         ],
       },
       orderBy: { criadoEm: 'desc' },
@@ -25,6 +26,7 @@ export async function notificacoesRoutes(app: FastifyInstance) {
       corpo:            z.string().min(1),
       tipo:             z.enum(['AVISO', 'EVENTO', 'COMUNICADO']).default('AVISO'),
       destinatarioRole: z.enum(['ATLETA', 'TREINADOR', 'ADMIN', 'SOCIO_TORCEDOR']).nullable().optional(),
+      destinatarioId:   z.number().int().positive().nullable().optional(),
     })
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })

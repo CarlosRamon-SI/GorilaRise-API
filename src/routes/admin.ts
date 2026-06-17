@@ -145,6 +145,22 @@ export async function adminRoutes(app: FastifyInstance) {
         plano: true,
       },
     })
+
+    // G6: auto-notify athlete
+    if (result.data.status === 'ATIVA') {
+      try {
+        await prisma.notificacao.create({
+          data: {
+            titulo: 'Matrícula Ativada',
+            corpo: `Sua matrícula foi ativada! Modalidade: ${matricula.modalidade.nome}, Plano: ${matricula.plano.nome}. Bem-vindo ao Gorila Rise!`,
+            tipo: 'AVISO',
+            destinatarioRole: 'ATLETA',
+            destinatarioId: result.data.usuarioId,
+          },
+        })
+      } catch { /* não bloqueia a criação da matrícula */ }
+    }
+
     return reply.status(201).send(matricula)
   })
 

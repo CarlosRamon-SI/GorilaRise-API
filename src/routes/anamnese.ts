@@ -33,7 +33,7 @@ function toResponse(a: any, usuario: any) {
     dataNascimento:            usuario.nascimento
       ? usuario.nascimento.toISOString().slice(0, 10)
       : '',
-    sexo:                      '',
+    sexo:                      a.sexo ?? '',
     telefone:                  usuario.telefone,
     profissao:                 a.profissao ?? '',
     contatoEmergenciaNome:     a.contatoEmergenciaNome ?? '',
@@ -76,6 +76,7 @@ export async function anamneseRoutes(app: FastifyInstance) {
       profissao:             d.profissao,
       contatoEmergenciaNome: d.contatoEmergenciaNome,
       contatoEmergenciaTel:  d.contatoEmergenciaTelefone,
+      sexo:                  d.sexo ?? null,
       objetivos:             d.objetivos,
       doencas:               d.doencas,
       medicamentos:          d.medicamentos,

@@ -3,17 +3,24 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth, requireTreinador, assertMatriculaAtiva } from '../middleware/auth.js'
 
+function localDayBounds(): { gte: Date; lte: Date } {
+  const n = new Date()
+  return {
+    gte: new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0),
+    lte: new Date(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59, 999),
+  }
+}
+
 export async function checkinRoutes(app: FastifyInstance) {
   // Atleta: listar turmas com status de check-in do dia atual
   app.get('/turmas', { preHandler: requireAuth }, async (request) => {
     const { sub } = request.user as { sub: number }
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const bounds = localDayBounds()
 
     const [turmas, meuCheckIns] = await Promise.all([
       prisma.turma.findMany({ where: { status: 'ATIVA' }, orderBy: { horario: 'asc' } }),
       prisma.checkIn.findMany({
-        where: { usuarioId: sub, data: today },
+        where: { usuarioId: sub, data: bounds },
         select: { turmaId: true },
       }),
     ])
@@ -39,8 +46,7 @@ export async function checkinRoutes(app: FastifyInstance) {
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const { gte: today } = localDayBounds()
 
     try {
       const checkin = await prisma.checkIn.create({
@@ -81,11 +87,10 @@ export async function checkinRoutes(app: FastifyInstance) {
   app.delete('/checkin/:turmaId', { preHandler: requireAuth }, async (request, reply) => {
     const { sub } = request.user as { sub: number }
     const { turmaId } = request.params as { turmaId: string }
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const bounds = localDayBounds()
 
     await prisma.checkIn.deleteMany({
-      where: { usuarioId: sub, turmaId: Number(turmaId), data: today },
+      where: { usuarioId: sub, turmaId: Number(turmaId), data: bounds },
     })
     return reply.status(204).send()
   })
@@ -95,15 +100,16 @@ export async function checkinRoutes(app: FastifyInstance) {
 export async function checkinAdminRoutes(app: FastifyInstance) {
   app.get('/checkin', { preHandler: requireTreinador }, async (request) => {
     const { data } = request.query as { data?: string }
-    // parse as local time to avoid UTC offset shifting the date to the previous day
-    const dia = data ? new Date(data + 'T00:00:00') : (() => { const d = new Date(); d.setHours(0,0,0,0); return d })()
+    const base = data ? new Date(data + 'T00:00:00') : new Date()
+    const diaStart = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0)
+    const diaEnd   = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999)
 
     const turmas = await prisma.turma.findMany({
       where: { status: 'ATIVA' },
       orderBy: { horario: 'asc' },
       include: {
         checkIns: {
-          where: { data: dia },
+          where: { data: { gte: diaStart, lte: diaEnd } },
           include: { usuario: { select: { nome: true, email: true } } },
           orderBy: { criadoEm: 'asc' },
         },
