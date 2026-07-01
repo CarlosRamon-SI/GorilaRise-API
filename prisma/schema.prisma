@@ -179,6 +179,18 @@ model Patrocinador {
   criadoEm  DateTime              @default(now())
 }
 
+model VantagemClube {
+  id          Int      @id @default(autoincrement())
+  empresa     String
+  beneficio   String   @db.Text
+  codigoDesc  String?
+  logoUrl     String?
+  link        String?
+  categoria   String   @default("Saúde")
+  ativo       Boolean  @default(true)
+  criadoEm   DateTime @default(now())
+}
+
 model Notificacao {
   id               Int             @id @default(autoincrement())
   titulo           String

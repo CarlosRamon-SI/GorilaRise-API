@@ -25,6 +25,7 @@ import { funcionariosRoutes } from './routes/funcionarios.js'
 import { professorRoutes } from './routes/professor.js'
 import { premiacoesRoutes } from './routes/premiacoes.js'
 import { patrocinadoresRoutes } from './routes/patrocinadores.js'
+import { vantagensRoutes } from './routes/vantagens.js'
 import { notificacoesRoutes } from './routes/notificacoes.js'
 import { fotosRoutes } from './routes/fotos.js'
 import { prontuarioRoutes } from './routes/prontuario.js'
@@ -74,6 +75,7 @@ await app.register(funcionariosRoutes)
 await app.register(professorRoutes, { prefix: '/professor' })
 await app.register(premiacoesRoutes)
 await app.register(patrocinadoresRoutes)
+await app.register(vantagensRoutes)
 await app.register(notificacoesRoutes)
 await app.register(fotosRoutes)
 await app.register(prontuarioRoutes)
