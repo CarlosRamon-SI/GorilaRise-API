@@ -39,7 +39,7 @@ export async function checkinRoutes(app: FastifyInstance) {
     const todayAbbr = DIA_ABBR[new Date().getDay()]
 
     const turmas = await prisma.turma.findMany({
-      where: { status: 'ATIVA' },
+      where: { status: 'ATIVA', atletas: { some: { atletaId: sub } } },
       orderBy: { horario: 'asc' },
       include: {
         // G-C2: incluir check-ins do dia para calcular vagas reais
