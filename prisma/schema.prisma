@@ -273,6 +273,9 @@ model Configuracao {
   emailPagamentoConfirmado Boolean @default(true)
   emailPlanoVencendo       Boolean @default(true)
   emailPlanoVencido        Boolean @default(false)
+
+  // Exibição pública
+  exibirCategoriasPatrocinadores Boolean @default(false)
 }
 
 model Funcionario {

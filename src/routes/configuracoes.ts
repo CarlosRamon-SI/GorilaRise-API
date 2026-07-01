@@ -44,6 +44,7 @@ const configSchema = z.object({
   emailPagamentoConfirmado: z.boolean().optional(),
   emailPlanoVencendo:       z.boolean().optional(),
   emailPlanoVencido:        z.boolean().optional(),
+  exibirCategoriasPatrocinadores: z.boolean().optional(),
 })
 
 async function getOrCreate() {
