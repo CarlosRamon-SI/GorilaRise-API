@@ -52,9 +52,9 @@ export async function checkinRoutes(app: FastifyInstance) {
 
     return turmas
       .filter(t => {
-        // G-C3: só turmas que ocorrem hoje
+        // G-C3: só turmas que ocorrem hoje (comparação case-insensitive)
         const dias = Array.isArray(t.dias) ? (t.dias as string[]) : []
-        return dias.includes(todayAbbr)
+        return dias.some(d => d.toLowerCase() === todayAbbr)
       })
       .map(t => ({
         id:         t.id,
