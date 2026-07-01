@@ -346,6 +346,7 @@ model Anamnese {
   contatoEmergenciaTel  String?
   sexo                  String?
   objetivos             Json      @default("[]")
+  objetivoDescricao     String?   @db.Text
   doencas               String?   @db.Text
   medicamentos          String?   @db.Text
   cirurgias             String?   @db.Text
