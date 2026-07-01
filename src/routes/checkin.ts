@@ -56,17 +56,28 @@ export async function checkinRoutes(app: FastifyInstance) {
         const dias = Array.isArray(t.dias) ? (t.dias as string[]) : []
         return dias.some(d => d.toLowerCase() === todayAbbr)
       })
-      .map(t => ({
-        id:         t.id,
-        codigo:     t.codigo,
-        horario:    t.horario,
-        dias:       t.dias,
-        modalidade: t.descricao ?? t.codigo,
-        // G-C2: vagas restantes reais
-        vagas:      Math.max(0, t.capacidade - t.checkIns.length),
-        capacidade: t.capacidade,
-        checkedIn:  t.checkIns.some(c => c.usuarioId === sub),
-      }))
+      .map(t => {
+        const classTime = horarioToday(t.horario)
+        let disponivel = true
+        let encerrada  = false
+        if (classTime) {
+          const diffMs = classTime.getTime() - Date.now()
+          if (diffMs > 2 * 60 * 60 * 1000)  disponivel = false          // janela ainda não abriu
+          if (diffMs < -60 * 60 * 1000) { disponivel = false; encerrada = true }  // aula encerrada
+        }
+        return {
+          id:         t.id,
+          codigo:     t.codigo,
+          horario:    t.horario,
+          dias:       t.dias,
+          modalidade: t.descricao ?? t.codigo,
+          vagas:      Math.max(0, t.capacidade - t.checkIns.length),
+          capacidade: t.capacidade,
+          checkedIn:  t.checkIns.some(c => c.usuarioId === sub),
+          disponivel,
+          encerrada,
+        }
+      })
   })
 
   // Atleta: fazer check-in
