@@ -5,20 +5,21 @@ import { requireAuth, requireTreinador, assertMatriculaAtiva } from '../middlewa
 
 const DIA_ABBR = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']
 
+// Usa Date.UTC para evitar problema de fuso: Prisma serializa UTC midnight como 'YYYY-MM-DD'
+// que o MySQL compara corretamente com campos @db.Date
 function localDayBounds(): { gte: Date; lte: Date } {
   const n = new Date()
   return {
-    gte: new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0),
-    lte: new Date(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59, 999),
+    gte: new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())),
+    lte: new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59, 999)),
   }
 }
 
-// G-C5: always use local-time constructor to avoid timezone ambiguity
 function parseLocalDate(dateStr: string, endOfDay = false): Date {
   const [y, m, d] = dateStr.split('-').map(Number)
   return endOfDay
-    ? new Date(y, m - 1, d, 23, 59, 59, 999)
-    : new Date(y, m - 1, d, 0, 0, 0, 0)
+    ? new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999))
+    : new Date(Date.UTC(y, m - 1, d))
 }
 
 // G-C4: parse "HH:MM" or "HH:MM:SS" into today's Date at that time
