@@ -160,12 +160,12 @@ export async function checkinRoutes(app: FastifyInstance) {
     const { sub } = request.user as { sub: number }
     const { turmaId } = request.params as { turmaId: string }
 
-    // G-C4: só cancela com ≥2h de antecedência
+    // só cancela com ≥1h de antecedência
     const turma = await prisma.turma.findUnique({ where: { id: Number(turmaId) } })
     if (turma) {
       const classTime = horarioToday(turma.horario)
-      if (classTime && classTime.getTime() - Date.now() < 2 * 60 * 60 * 1000)
-        return reply.status(422).send({ error: 'Cancelamento só é permitido com no mínimo 2h de antecedência.' })
+      if (classTime && classTime.getTime() - Date.now() < 60 * 60 * 1000)
+        return reply.status(422).send({ error: 'Cancelamento só é permitido com no mínimo 1h de antecedência.' })
     }
 
     const bounds = localDayBounds()
