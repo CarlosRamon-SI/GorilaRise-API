@@ -243,6 +243,24 @@ model Configuracao {
   facebook    String @default("")
   youtube     String @default("")
   tiktok      String @default("")
+
+  // SMTP
+  smtpHost      String  @default("")
+  smtpPort      Int     @default(587)
+  smtpUser      String  @default("")
+  smtpSenha     String  @default("")
+  smtpFromNome  String  @default("Gorila Rise")
+  smtpFromEmail String  @default("")
+  smtpTLS       Boolean @default(true)
+
+  // Toggles de notificação por email
+  emailBoasVindas          Boolean @default(true)
+  emailUsuarioAtivado      Boolean @default(true)
+  emailMatriculaAtivada    Boolean @default(true)
+  emailMatriculaCancelada  Boolean @default(true)
+  emailPagamentoConfirmado Boolean @default(true)
+  emailPlanoVencendo       Boolean @default(true)
+  emailPlanoVencido        Boolean @default(false)
 }
 
 model Funcionario {

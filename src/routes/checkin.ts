@@ -166,17 +166,21 @@ export async function checkinRoutes(app: FastifyInstance) {
 
 // Rotas treinador/admin
 export async function checkinAdminRoutes(app: FastifyInstance) {
-  // GET /admin/checkin — turmas do treinador com check-ins do dia
+  // GET /admin/checkin — turmas com check-ins do dia (admin vê todas; treinador vê só as suas)
   app.get('/checkin', { preHandler: requireTreinador }, async (request) => {
-    const { sub } = request.user as { sub: number }
+    const { sub, role } = request.user as { sub: number; role: string }
     const { data } = request.query as { data?: string }
     const base = data ? parseLocalDate(data) : new Date()
     const diaStart = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0)
     const diaEnd   = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999)
 
-    // G-C6: apenas turmas deste treinador
+    // G-C6: treinador vê só suas turmas; admin vê todas
+    const where = role === 'ADMIN'
+      ? { status: 'ATIVA' as const }
+      : { status: 'ATIVA' as const, treinadorId: sub }
+
     const turmas = await prisma.turma.findMany({
-      where: { status: 'ATIVA', treinadorId: sub },
+      where,
       orderBy: { horario: 'asc' },
       include: {
         checkIns: {

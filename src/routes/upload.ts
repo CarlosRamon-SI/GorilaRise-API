@@ -3,9 +3,11 @@ import { pipeline } from 'stream/promises'
 import { createWriteStream } from 'fs'
 import { randomUUID } from 'crypto'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { requireAuth } from '../middleware/auth.js'
 
-const UPLOADS_DIR = path.resolve('uploads')
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const UPLOADS_DIR = path.resolve(__dirname, '../../uploads')
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 

@@ -2,6 +2,8 @@ import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import { prisma } from '../lib/prisma.js'
+import { sendEmail } from '../lib/mailer.js'
+import { tplBoasVindas } from '../lib/emailTemplates.js'
 
 const cadastroSchema = z.object({
   nome: z.string().min(3),
@@ -77,6 +79,9 @@ export async function authRoutes(app: FastifyInstance) {
       },
       select: { id: true },
     })
+
+    const tpl = tplBoasVindas(data.nome)
+    await sendEmail({ to: data.email, toggle: 'emailBoasVindas', ...tpl })
 
     return reply.status(201).send({ mensagem: 'Cadastro realizado. Aguarde a ativação pela equipe.' })
   })

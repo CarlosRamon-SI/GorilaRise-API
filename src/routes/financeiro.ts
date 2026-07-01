@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin, requireTreinador } from '../middleware/auth.js'
+import { sendEmail } from '../lib/mailer.js'
+import { tplPagamentoConfirmado } from '../lib/emailTemplates.js'
 
 export async function financeiroRoutes(app: FastifyInstance) {
   app.get('/financeiro', { preHandler: requireTreinador }, async () => {
@@ -47,12 +49,21 @@ export async function financeiroRoutes(app: FastifyInstance) {
         where: { id: Number(id) },
         data: { dataPagamento: new Date() },
         include: {
-          usuario: { select: { nome: true } },
+          usuario: { select: { nome: true, email: true } },
           plano:   { select: { nome: true, valor: true } },
         },
       })
       const vencimento = new Date(m.criadoEm)
       vencimento.setDate(vencimento.getDate() + 30)
+
+      const tpl = tplPagamentoConfirmado({
+        nome:  m.usuario.nome,
+        plano: m.plano.nome,
+        valor: m.plano.valor.toString(),
+        data:  m.dataPagamento!.toLocaleDateString('pt-BR'),
+      })
+      await sendEmail({ to: m.usuario.email, toggle: 'emailPagamentoConfirmado', ...tpl })
+
       return {
         id: m.id,
         atletaNome:     m.usuario.nome,

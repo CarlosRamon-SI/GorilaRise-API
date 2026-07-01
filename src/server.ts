@@ -5,6 +5,10 @@ import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
 import staticFiles from '@fastify/static'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const UPLOADS_DIR = path.resolve(__dirname, '../uploads')
 import { authRoutes } from './routes/auth.js'
 import { modalidadesRoutes } from './routes/modalidades.js'
 import { planosRoutes } from './routes/planos.js'
@@ -38,7 +42,7 @@ await app.register(helmet, {
 })
 await app.register(multipart, { limits: { fileSize: 6 * 1024 * 1024 } })
 await app.register(staticFiles, {
-  root: path.resolve('uploads'),
+  root: UPLOADS_DIR,
   prefix: '/uploads/',
 })
 await app.register(cors, {

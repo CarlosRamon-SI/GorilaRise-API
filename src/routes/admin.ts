@@ -3,6 +3,8 @@ import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin, requireTreinador, assertMatriculaAtiva } from '../middleware/auth.js'
+import { sendEmail } from '../lib/mailer.js'
+import { tplUsuarioAtivado, tplMatriculaAtivada, tplMatriculaCancelada } from '../lib/emailTemplates.js'
 
 export async function adminRoutes(app: FastifyInstance) {
   // Stats
@@ -58,11 +60,16 @@ export async function adminRoutes(app: FastifyInstance) {
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
     try {
-      return prisma.usuario.update({
+      const updated = await prisma.usuario.update({
         where: { id: Number(id) },
         data: result.data,
         select: { id: true, nome: true, email: true, cpf: true, telefone: true, cidade: true, role: true, funcao: true, ativo: true, criadoEm: true },
       })
+      if (result.data.ativo === true) {
+        const tpl = tplUsuarioAtivado(updated.nome)
+        await sendEmail({ to: updated.email, toggle: 'emailUsuarioAtivado', ...tpl })
+      }
+      return updated
     } catch (e: any) {
       if (e.code === 'P2002') {
         const field = e.meta?.target?.includes('email') ? 'e-mail' : 'CPF'
@@ -158,7 +165,15 @@ export async function adminRoutes(app: FastifyInstance) {
             destinatarioId: result.data.usuarioId,
           },
         })
-      } catch { /* não bloqueia a criação da matrícula */ }
+      } catch { /* não bloqueia */ }
+
+      const tpl = tplMatriculaAtivada({
+        nome:       matricula.usuario.nome,
+        modalidade: matricula.modalidade.nome,
+        plano:      matricula.plano.nome,
+        valor:      matricula.plano.valor.toString(),
+      })
+      await sendEmail({ to: matricula.usuario.email, toggle: 'emailMatriculaAtivada', ...tpl })
     }
 
     return reply.status(201).send(matricula)
@@ -174,7 +189,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
     try {
-      return prisma.matricula.update({
+      const updated = await prisma.matricula.update({
         where: { id: Number(id) },
         data: result.data,
         include: {
@@ -183,6 +198,21 @@ export async function adminRoutes(app: FastifyInstance) {
           plano: true,
         },
       })
+
+      if (result.data.status === 'ATIVA') {
+        const tpl = tplMatriculaAtivada({
+          nome:       updated.usuario.nome,
+          modalidade: updated.modalidade.nome,
+          plano:      updated.plano.nome,
+          valor:      updated.plano.valor.toString(),
+        })
+        await sendEmail({ to: updated.usuario.email, toggle: 'emailMatriculaAtivada', ...tpl })
+      } else if (result.data.status === 'INATIVA') {
+        const tpl = tplMatriculaCancelada({ nome: updated.usuario.nome, modalidade: updated.modalidade.nome })
+        await sendEmail({ to: updated.usuario.email, toggle: 'emailMatriculaCancelada', ...tpl })
+      }
+
+      return updated
     } catch (e: any) {
       if (e.code === 'P2025') return reply.status(404).send({ error: 'Matrícula não encontrada.' })
       throw e
