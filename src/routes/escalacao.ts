@@ -49,11 +49,12 @@ export async function escalacaoRoutes(app: FastifyInstance) {
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
 
+    const dataEscalacao = new Date(result.data.data + 'T12:00:00')
     const escalacao = await prisma.escalacao.create({
       data: {
         titulo:     result.data.titulo,
         descricao:  result.data.descricao,
-        data:       new Date(result.data.data + 'T12:00:00'),
+        data:       dataEscalacao,
         treinadorId: sub,
         atletas: {
           create: result.data.atletasIds.map(a => ({
@@ -66,6 +67,20 @@ export async function escalacaoRoutes(app: FastifyInstance) {
         atletas: { include: { atleta: { select: { id: true, nome: true, email: true } } } },
       },
     })
+
+    // Notificar cada atleta escalado
+    if (result.data.atletasIds.length > 0) {
+      const dataFmt = dataEscalacao.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      await prisma.notificacao.createMany({
+        data: result.data.atletasIds.map(a => ({
+          titulo: 'Você foi escalado!',
+          corpo: `Você está na escalação "${result.data.titulo}" em ${dataFmt}.`,
+          tipo: 'CONVOCACAO' as const,
+          destinatarioId: a.atletaId,
+        })),
+      })
+    }
+
     return reply.status(201).send(mapEscalacao(escalacao))
   })
 
@@ -98,11 +113,23 @@ export async function escalacaoRoutes(app: FastifyInstance) {
       await prisma.escalacaoAtleta.create({
         data: { escalacaoId: Number(id), atletaId: result.data.atletaId, posicao: result.data.posicao ?? null },
       })
-      return reply.status(201).send({ ok: true })
     } catch (e: any) {
       if (e.code === 'P2002') return reply.status(409).send({ error: 'Atleta já escalado.' })
       throw e
     }
+
+    // Notificar o atleta recém-escalado
+    const dataFmt = escalacao.data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    await prisma.notificacao.create({
+      data: {
+        titulo: 'Você foi escalado!',
+        corpo: `Você está na escalação "${escalacao.titulo}" em ${dataFmt}.`,
+        tipo: 'CONVOCACAO',
+        destinatarioId: result.data.atletaId,
+      },
+    })
+
+    return reply.status(201).send({ ok: true })
   })
 
   // Remover atleta de uma escalação

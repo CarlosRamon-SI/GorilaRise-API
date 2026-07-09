@@ -7,7 +7,7 @@ export async function notificacoesRoutes(app: FastifyInstance) {
   // Leitura filtrada por role do usuário logado + notificações direcionadas ao userId
   app.get('/notificacoes', { preHandler: requireAuth }, async (request) => {
     const { sub, role } = request.user as { sub: number; role: string }
-    return prisma.notificacao.findMany({
+    const notifs = await prisma.notificacao.findMany({
       where: {
         OR: [
           { destinatarioRole: null, destinatarioId: null },
@@ -18,6 +18,32 @@ export async function notificacoesRoutes(app: FastifyInstance) {
       orderBy: { criadoEm: 'desc' },
       take: 50,
     })
+    const lidas = await prisma.notificacaoLida.findMany({
+      where: { usuarioId: sub, notificacaoId: { in: notifs.map(n => n.id) } },
+      select: { notificacaoId: true },
+    })
+    const lidasIds = new Set(lidas.map(l => l.notificacaoId))
+    return notifs.map(n => ({ ...n, lida: lidasIds.has(n.id) }))
+  })
+
+  // Marca todas as notificações visíveis ao usuário como lidas
+  app.post('/notificacoes/lidas', { preHandler: requireAuth }, async (request) => {
+    const { sub, role } = request.user as { sub: number; role: string }
+    const notifs = await prisma.notificacao.findMany({
+      where: {
+        OR: [
+          { destinatarioRole: null, destinatarioId: null },
+          { destinatarioRole: role, destinatarioId: null },
+          { destinatarioId: sub },
+        ],
+      },
+      select: { id: true },
+    })
+    await prisma.notificacaoLida.createMany({
+      data: notifs.map(n => ({ notificacaoId: n.id, usuarioId: sub })),
+      skipDuplicates: true,
+    })
+    return { ok: true }
   })
 
   app.post('/notificacoes', { preHandler: requireAdmin }, async (request, reply) => {

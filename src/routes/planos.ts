@@ -8,6 +8,7 @@ const planoSchema = z.object({
   valor: z.number().positive(),
   descricao: z.string().optional(),
   ativo: z.boolean().optional().default(true),
+  categoria: z.enum(['ASSOCIACAO', 'SOCIO_TORCEDOR', 'TURMA_REGULAR']).optional().default('TURMA_REGULAR'),
 })
 
 export async function planosRoutes(app: FastifyInstance) {

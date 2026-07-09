@@ -43,8 +43,14 @@ model Usuario {
   turmasAtleta             TurmaAtleta[]
   modalidadesTreinador     TreinadorModalidade[] @relation("TreinadorModalidades")
   notificacoesDestinadas   Notificacao[]        @relation("NotificacaoDestinatario")
+  notificacoesLidas        NotificacaoLida[]
   escalacoesComoTreinador  Escalacao[]          @relation("EscalacaoTreinador")
   escalacoes               EscalacaoAtleta[]    @relation("EscalacaoAtletas")
+  videosAutor              VideoTreino[]        @relation("VideosAutor")
+  templatesTreino          TemplateTreino[]     @relation("TemplatesTreino")
+  tokensRecuperacao        TokenRecuperacaoSenha[]
+  prescricoesDieta         PrescricaoDieta[]    @relation("PrescricaoDietaAtleta")
+  prescricoesDietaAutor    PrescricaoDieta[]    @relation("PrescricaoDietaAutor")
 }
 
 model Modalidade {
@@ -59,11 +65,12 @@ model Modalidade {
 }
 
 model Plano {
-  id        Int         @id @default(autoincrement())
+  id        Int             @id @default(autoincrement())
   nome      String
-  valor     Decimal     @db.Decimal(10, 2)
+  valor     Decimal         @db.Decimal(10, 2)
   descricao String?
-  ativo     Boolean     @default(true)
+  ativo     Boolean         @default(true)
+  categoria CategoriaPlano  @default(TURMA_REGULAR)
 
   matriculas Matricula[]
 }
@@ -148,10 +155,17 @@ enum CategoriaPatrocinador {
   BRONZE
 }
 
+enum CategoriaPlano {
+  ASSOCIACAO
+  SOCIO_TORCEDOR
+  TURMA_REGULAR
+}
+
 enum TipoNotificacao {
   AVISO
   EVENTO
   COMUNICADO
+  CONVOCACAO
 }
 
 model Premiacao {
@@ -192,14 +206,26 @@ model VantagemClube {
 }
 
 model Notificacao {
-  id               Int             @id @default(autoincrement())
+  id               Int               @id @default(autoincrement())
   titulo           String
-  corpo            String          @db.Text
-  tipo             TipoNotificacao @default(AVISO)
+  corpo            String            @db.Text
+  tipo             TipoNotificacao   @default(AVISO)
   destinatarioRole String?
   destinatarioId   Int?
-  destinatario     Usuario?        @relation("NotificacaoDestinatario", fields: [destinatarioId], references: [id])
-  criadoEm         DateTime        @default(now())
+  destinatario     Usuario?          @relation("NotificacaoDestinatario", fields: [destinatarioId], references: [id])
+  criadoEm         DateTime          @default(now())
+  leituras         NotificacaoLida[]
+}
+
+model NotificacaoLida {
+  id             Int         @id @default(autoincrement())
+  notificacaoId  Int
+  usuarioId      Int
+  lidaEm         DateTime    @default(now())
+  notificacao    Notificacao @relation(fields: [notificacaoId], references: [id], onDelete: Cascade)
+  usuario        Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([notificacaoId, usuarioId])
 }
 
 model Evento {
@@ -276,6 +302,19 @@ model Configuracao {
 
   // Exibição pública
   exibirCategoriasPatrocinadores Boolean @default(false)
+
+  // Controles de atletas
+  permitirAlteracaoFotos Boolean @default(true)
+
+  // Identidade do site
+  nomeSite      String @default("Gorila Rise")
+  descricaoSite String @default("Esporte Clube Gorila Rise - Mantenha-se forte. Academia, crossfit, natação e muito mais.")
+
+  // Gmail OAuth2
+  gmailUser         String @default("")
+  gmailClientId     String @default("")
+  gmailClientSecret String @default("")
+  gmailRefreshToken String @default("")
 }
 
 model Funcionario {
@@ -440,15 +479,51 @@ model WOD {
   autor      Usuario? @relation(fields: [autorId], references: [id])
 }
 
+model TemplateTreino {
+  id         Int      @id @default(autoincrement())
+  titulo     String
+  descricao  String?  @db.Text
+  exercicios String?  @db.Text
+  categoria  String?
+  autorId    Int?
+  criadoEm   DateTime @default(now())
+
+  autor      Usuario? @relation("TemplatesTreino", fields: [autorId], references: [id])
+}
+
 model TreinoPrescrito {
   id         Int      @id @default(autoincrement())
   atletaNome String
   atletaId   Int?
   titulo     String
+  descricao  String?  @db.Text
   exercicios String?  @db.Text
   criadoEm   DateTime @default(now())
 
-  atleta     Usuario? @relation(fields: [atletaId], references: [id])
+  atleta     Usuario?     @relation(fields: [atletaId], references: [id])
+  videos     TreinoVideo[]
+}
+
+model VideoTreino {
+  id        Int      @id @default(autoincrement())
+  titulo    String
+  url       String
+  descricao String?
+  autorId   Int?
+  criadoEm  DateTime @default(now())
+
+  autor   Usuario?      @relation("VideosAutor", fields: [autorId], references: [id])
+  treinos TreinoVideo[]
+}
+
+model TreinoVideo {
+  treinoId Int
+  videoId  Int
+
+  treino TreinoPrescrito @relation(fields: [treinoId], references: [id], onDelete: Cascade)
+  video  VideoTreino     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([treinoId, videoId])
 }
 
 model Escalacao {
@@ -472,4 +547,40 @@ model EscalacaoAtleta {
   atleta      Usuario   @relation("EscalacaoAtletas", fields: [atletaId], references: [id])
 
   @@id([escalacaoId, atletaId])
+}
+
+model TokenRecuperacaoSenha {
+  id         Int       @id @default(autoincrement())
+  usuarioId  Int
+  token      String    @unique
+  expiresAt  DateTime
+  usadoEm    DateTime?
+  criadoEm   DateTime  @default(now())
+
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model PrescricaoDieta {
+  id                  Int      @id @default(autoincrement())
+  atletaId             Int
+  autorId              Int?
+  peso                 Decimal  @db.Decimal(5, 2)
+  altura               Decimal  @db.Decimal(5, 2)
+  idade                Int
+  sexo                 String
+  nivelAtividade       String
+  biotipo              String
+  modalidadeEsportiva  String?
+  objetivo             String
+  restricoes           String?  @db.Text
+  calorias             Int
+  proteinas            Int
+  carboidratos         Int
+  gorduras             Int
+  agua                 Int
+  recomendacao         String?  @db.Text
+  criadoEm             DateTime @default(now())
+
+  atleta Usuario  @relation("PrescricaoDietaAtleta", fields: [atletaId], references: [id], onDelete: Cascade)
+  autor  Usuario? @relation("PrescricaoDietaAutor", fields: [autorId], references: [id])
 }

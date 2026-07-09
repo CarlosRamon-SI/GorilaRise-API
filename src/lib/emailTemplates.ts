@@ -200,3 +200,17 @@ export function tplPlanoVencido(opts: {
     `),
   }
 }
+
+export function tplRecuperacaoSenha(opts: { nome: string; link: string }): { subject: string; html: string } {
+  return {
+    subject: 'Recuperação de senha — Gorila Rise',
+    html: layout('Recuperação de senha', `
+      ${badge('SEGURANÇA')}
+      ${h1('Redefinição de senha')}
+      ${p(`Olá, ${opts.nome}. Recebemos uma solicitação para redefinir a senha da sua conta.`)}
+      ${p('Clique no botão abaixo para criar uma nova senha. Este link é válido por <strong>1 hora</strong>.')}
+      ${btn('Redefinir minha senha', opts.link)}
+      ${p('Se você não solicitou a redefinição de senha, ignore este e-mail — sua conta permanece segura.')}
+    `),
+  }
+}

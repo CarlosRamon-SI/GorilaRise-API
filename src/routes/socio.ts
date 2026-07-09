@@ -42,7 +42,7 @@ export async function socioRoutes(app: FastifyInstance) {
     const evento = await prisma.evento.create({
       data: { ...rest, data: new Date(data) },
     })
-    return reply.status(201).send({ ...evento, data: evento.data.toISOString() })
+    return reply.status(201).send({ ...evento, data: evento.data.toISOString(), totalIngressos: 0 })
   })
 
   app.patch('/eventos/:id', { preHandler: requireAdmin }, async (request, reply) => {

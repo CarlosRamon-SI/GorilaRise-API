@@ -2,8 +2,9 @@ import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import { prisma } from '../lib/prisma.js'
-import { sendEmail } from '../lib/mailer.js'
-import { tplBoasVindas } from '../lib/emailTemplates.js'
+import { sendEmail, sendEmailDirect } from '../lib/mailer.js'
+import { tplBoasVindas, tplRecuperacaoSenha } from '../lib/emailTemplates.js'
+import { randomBytes } from 'crypto'
 
 const cadastroSchema = z.object({
   nome: z.string().min(3),
@@ -126,6 +127,51 @@ export async function authRoutes(app: FastifyInstance) {
   const jwtPreHandler = async (req: any, rep: any) => {
     try { await req.jwtVerify() } catch { rep.status(401).send({ error: 'Não autorizado' }) }
   }
+
+  app.post('/recuperar-senha', async (request, reply) => {
+    const { email } = request.body as { email?: string }
+    if (!email) return reply.status(400).send({ error: 'Informe o e-mail.' })
+
+    const usuario = await prisma.usuario.findUnique({ where: { email } })
+    // Resposta sempre 200 para não revelar se o email existe
+    if (!usuario || !usuario.ativo) return { mensagem: 'Se o e-mail estiver cadastrado, você receberá as instruções em breve.' }
+
+    const token = randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hora
+
+    await prisma.tokenRecuperacaoSenha.create({ data: { usuarioId: usuario.id, token, expiresAt } })
+
+    const BASE_URL = process.env.BASE_URL ?? 'https://evo.adtecnologia.com.br'
+    const link = `${BASE_URL}/redefinir-senha?token=${token}`
+    const tpl = tplRecuperacaoSenha({ nome: usuario.nome.split(' ')[0], link })
+    await sendEmailDirect({ to: usuario.email, ...tpl })
+
+    return { mensagem: 'Se o e-mail estiver cadastrado, você receberá as instruções em breve.' }
+  })
+
+  app.post('/redefinir-senha', async (request, reply) => {
+    const schema = z.object({
+      token: z.string().min(1),
+      novaSenha: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.'),
+    })
+    const result = schema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: result.error.errors[0].message })
+
+    const { token, novaSenha } = result.data
+
+    const registro = await prisma.tokenRecuperacaoSenha.findUnique({ where: { token } })
+    if (!registro || registro.usadoEm || registro.expiresAt < new Date()) {
+      return reply.status(400).send({ error: 'Link inválido ou expirado. Solicite um novo.' })
+    }
+
+    const hash = await bcrypt.hash(novaSenha, 10)
+    await prisma.$transaction([
+      prisma.usuario.update({ where: { id: registro.usuarioId }, data: { senha: hash } }),
+      prisma.tokenRecuperacaoSenha.update({ where: { token }, data: { usadoEm: new Date() } }),
+    ])
+
+    return { mensagem: 'Senha redefinida com sucesso.' }
+  })
 
   app.patch('/me', { preHandler: jwtPreHandler }, async (request, reply) => {
     const payload = request.user as { sub: number }

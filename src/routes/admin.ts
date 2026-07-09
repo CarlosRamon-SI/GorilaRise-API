@@ -9,7 +9,7 @@ import { tplUsuarioAtivado, tplMatriculaAtivada, tplMatriculaCancelada } from '.
 export async function adminRoutes(app: FastifyInstance) {
   // Stats
   app.get('/stats', { preHandler: requireTreinador }, async () => {
-    const [usuarios, matriculas, modalidades, planos, leads, projetos, documentos, funcionarios, patrocinadores] = await Promise.all([
+    const [usuarios, matriculas, modalidades, planos, leads, projetos, documentos, funcionarios, patrocinadores, usuariosPendentes] = await Promise.all([
       prisma.usuario.count({ where: { ativo: true } }),
       prisma.matricula.count({ where: { status: 'ATIVA' } }),
       prisma.modalidade.count({ where: { ativa: true } }),
@@ -19,8 +19,9 @@ export async function adminRoutes(app: FastifyInstance) {
       prisma.documentoOficial.count({ where: { ativo: true } }),
       prisma.funcionario.count({ where: { ativo: true } }),
       prisma.patrocinador.count({ where: { ativo: true } }),
+      prisma.usuario.count({ where: { ativo: false } }),
     ])
-    return { usuarios, matriculas, modalidades, planos, leads, projetos, documentos, funcionarios, patrocinadores }
+    return { usuarios, matriculas, modalidades, planos, leads, projetos, documentos, funcionarios, patrocinadores, usuariosPendentes }
   })
 
   // Listar usuários
@@ -125,9 +126,10 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/matriculas', { preHandler: requireTreinador }, async () => {
     return prisma.matricula.findMany({
       include: {
-        usuario: { select: { id: true, nome: true, email: true } },
+        usuario:    { select: { id: true, nome: true, email: true } },
         modalidade: true,
-        plano: true,
+        plano:      true,
+        responsavel: { select: { id: true, nome: true } },
       },
       orderBy: { criadoEm: 'desc' },
     })
@@ -139,7 +141,7 @@ export async function adminRoutes(app: FastifyInstance) {
       usuarioId:     z.number().int().positive(),
       modalidadeId:  z.number().int().positive(),
       planoId:       z.number().int().positive(),
-      responsavelId: z.number().int().positive().nullable().optional(),
+      responsavelId: z.number().int().positive(),
       status:        z.enum(['ATIVA', 'INATIVA', 'PENDENTE']).default('ATIVA'),
     })
     const result = schema.safeParse(request.body)
@@ -147,9 +149,10 @@ export async function adminRoutes(app: FastifyInstance) {
     const matricula = await prisma.matricula.create({
       data: result.data,
       include: {
-        usuario: { select: { id: true, nome: true, email: true } },
+        usuario:    { select: { id: true, nome: true, email: true } },
         modalidade: true,
-        plano: true,
+        plano:      true,
+        responsavel: { select: { id: true, nome: true } },
       },
     })
 
@@ -179,12 +182,14 @@ export async function adminRoutes(app: FastifyInstance) {
     return reply.status(201).send(matricula)
   })
 
-  // Atualizar status de matrícula — só ADMIN
+  // Editar matrícula completa — só ADMIN
   app.patch('/matriculas/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const schema = z.object({
+      modalidadeId:  z.number().int().positive().optional(),
+      planoId:       z.number().int().positive().optional(),
+      responsavelId: z.number().int().positive(),
       status:        z.enum(['ATIVA', 'INATIVA', 'PENDENTE']).optional(),
-      responsavelId: z.number().int().positive().nullable().optional(),
     })
     const result = schema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
@@ -193,9 +198,10 @@ export async function adminRoutes(app: FastifyInstance) {
         where: { id: Number(id) },
         data: result.data,
         include: {
-          usuario: { select: { id: true, nome: true, email: true } },
+          usuario:    { select: { id: true, nome: true, email: true } },
           modalidade: true,
-          plano: true,
+          plano:      true,
+          responsavel: { select: { id: true, nome: true } },
         },
       })
 
