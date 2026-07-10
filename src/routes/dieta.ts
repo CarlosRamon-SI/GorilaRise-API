@@ -52,4 +52,45 @@ export async function dietaRoutes(app: FastifyInstance) {
       orderBy: { criadoEm: 'desc' },
     })
   })
+
+  // Professor/Admin: dados já cadastrados do atleta (anamnese, biometria, matrícula) pra prefill da prescrição
+  app.get('/dieta/dados-atleta/:atletaId', { preHandler: requireTreinador }, async (request, reply) => {
+    const { atletaId } = request.params as { atletaId: string }
+    const id = Number(atletaId)
+
+    const [usuario, anamnese, biometria, matricula] = await Promise.all([
+      prisma.usuario.findUnique({ where: { id }, select: { nascimento: true } }),
+      prisma.anamnese.findUnique({ where: { usuarioId: id }, select: { sexo: true, atualizadoEm: true } }),
+      prisma.biometria.findUnique({ where: { usuarioId: id }, select: { peso: true, altura: true, atualizadoEm: true } }),
+      prisma.matricula.findFirst({
+        where: { usuarioId: id, status: 'ATIVA' },
+        orderBy: { criadoEm: 'desc' },
+        select: { criadoEm: true, modalidade: { select: { nome: true } } },
+      }),
+    ])
+
+    if (!usuario) return reply.status(404).send({ error: 'Atleta não encontrado' })
+
+    let idade: number | null = null
+    const nasc = usuario.nascimento
+    if (nasc) {
+      const hoje = new Date()
+      idade = hoje.getFullYear() - nasc.getFullYear()
+      const aindaNaoFezAniversario =
+        hoje.getMonth() < nasc.getMonth() ||
+        (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate())
+      if (aindaNaoFezAniversario) idade--
+    }
+
+    return {
+      idade,
+      sexo: anamnese?.sexo ?? null,
+      sexoAtualizadoEm: anamnese?.atualizadoEm ?? null,
+      peso: biometria?.peso ?? null,
+      altura: biometria?.altura ?? null,
+      biometriaAtualizadoEm: biometria?.atualizadoEm ?? null,
+      modalidadeEsportiva: matricula?.modalidade?.nome ?? null,
+      matriculaDesde: matricula?.criadoEm ?? null,
+    }
+  })
 }
