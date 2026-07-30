@@ -303,7 +303,8 @@ model Configuracao {
   // Exibição pública
   exibirCategoriasPatrocinadores Boolean @default(false)
 
-  // Controles de atletas
+  // Controles de atletas — permite que o atleta exclua fotos de progresso já enviadas
+  // (o envio de novas fotos é sempre permitido; só a exclusão é controlada aqui)
   permitirAlteracaoFotos Boolean @default(true)
 
   // Identidade do site
