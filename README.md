@@ -15,17 +15,31 @@ API REST do sistema de gestão Gorila Rise.
 ## Requisitos
 
 - Node.js 18+
-- MySQL rodando localmente
+- MySQL rodando localmente, com o banco já criado (`CREATE DATABASE gorila_rise;` ou o nome escolhido) — `prisma migrate deploy` aplica o schema, mas não cria o database
 - Variáveis de ambiente configuradas (ver `.env.example`)
 
 ## Instalação
 
 ```bash
 npm install
-cp .env.example .env   # preencher as variáveis
+cp .env.example .env   # preencher as variáveis (ver seção abaixo)
+mkdir -p uploads        # diretório de uploads, não versionado — precisa existir antes do 1º upload
 npx prisma migrate deploy
-npm run db:seed        # cria o usuário admin inicial
+npm run db:seed         # cria o usuário admin inicial (ADMIN_NOME/ADMIN_EMAIL/ADMIN_SENHA do .env)
 ```
+
+## Variáveis de ambiente
+
+| Variável | Descrição |
+|---|---|
+| `DATABASE_URL` | Connection string MySQL, ex.: `mysql://usuario:senha@localhost:3306/gorila_rise` |
+| `JWT_SECRET` | Chave usada para assinar os tokens JWT |
+| `PORT` | Porta em que a API escuta (padrão usado em produção: `3333`) |
+| `BASE_URL` | URL pública/base usada para montar links absolutos (ex.: recuperação de senha, uploads) |
+| `ADMIN_NOME`, `ADMIN_EMAIL`, `ADMIN_SENHA` | Dados do usuário admin criado por `npm run db:seed` |
+| `HCAPTCHA_SECRET` | Secret key do hCaptcha (par da `VITE_HCAPTCHA_SITE_KEY` do frontend), usada para validar o captcha no backend |
+
+> As credenciais de envio de e-mail (Gmail OAuth2) **não ficam em `.env`** — ver seção dedicada abaixo.
 
 ## Comandos
 
@@ -127,13 +141,19 @@ Em `/admin/configuracoes` → "Gmail OAuth2", preencha:
 
 Salve e use o botão de e-mail de teste (rota `POST /configuracoes` de teste, ver `src/routes/configuracoes.ts`) para validar o envio antes de contar com o fluxo em produção.
 
+## Backend + frontend
+
+Esta API não serve nenhuma UI — ela é consumida pelo repositório do frontend (`GorilaRise`, Vite/React), que aponta para ela via `VITE_API_URL`. Para rodar a aplicação completa localmente, suba esta API primeiro (`npm run dev`, porta padrão `3333`) e depois o frontend com `VITE_API_URL=http://localhost:3333` no `.env` dele.
+
 ## Deploy
 
 O processo deve rodar via PM2 apontando para o build compilado:
 
 ```bash
 npm run build
-pm2 start dist/server.js --name gorila-rise-api
+pm2 start dist/server.js --name gorilaRise-api
 ```
 
-> A API escuta apenas em `127.0.0.1` — não exposta diretamente; o frontend consome via `VITE_API_URL`.
+> Use exatamente o nome `gorilaRise-api` — é o nome do processo já referenciado nas rotinas de redeploy/restart em produção.
+
+> A API escuta apenas em `127.0.0.1` — não exposta diretamente; em produção o nginx faz proxy reverso de `/api/*` e `/uploads/*` para `127.0.0.1:3333` (ver seção de deploy do README do frontend para o config completo). O frontend consome via `VITE_API_URL`.
