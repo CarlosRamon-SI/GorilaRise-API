@@ -35,6 +35,7 @@ import { socioRoutes } from './routes/socio.js'
 import { ambientesRoutes } from './routes/ambientes.js'
 import { escalacaoRoutes } from './routes/escalacao.js'
 import { dietaRoutes } from './routes/dieta.js'
+import { alimentosRoutes } from './routes/alimentos.js'
 
 const app = Fastify({ logger: true })
 
@@ -87,6 +88,7 @@ await app.register(socioRoutes)
 await app.register(ambientesRoutes, { prefix: '/admin' })
 await app.register(escalacaoRoutes)
 await app.register(dietaRoutes)
+await app.register(alimentosRoutes)
 
 // Health check
 app.get('/health', async () => ({ status: 'ok' }))

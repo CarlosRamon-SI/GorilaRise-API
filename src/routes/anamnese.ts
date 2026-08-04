@@ -24,6 +24,10 @@ const anamneseSchema = z.object({
   frequenciaSemanal:         z.string().optional().default(''),
   qualidadeSono:             z.string().optional().default(''),
   consumoAlcool:             z.string().optional().default(''),
+  alergiasIntolerancias:     z.string().optional().default(''),
+  restricoesAlimentares:     z.string().optional().default(''),
+  preferenciasAlimentares:   z.string().optional().default(''),
+  rotinaAlimentar:           z.string().optional().default(''),
   termoacceito:              z.boolean().optional().default(false),
 })
 
@@ -52,6 +56,10 @@ function toResponse(a: any, usuario: any) {
     frequenciaSemanal:         a.frequenciaSemanal ?? '',
     qualidadeSono:             a.qualidadeSono ?? '',
     consumoAlcool:             a.consumoAlcool ?? '',
+    alergiasIntolerancias:     a.alergiasIntolerancias ?? '',
+    restricoesAlimentares:     a.restricoesAlimentares ?? '',
+    preferenciasAlimentares:   a.preferenciasAlimentares ?? '',
+    rotinaAlimentar:           a.rotinaAlimentar ?? '',
     termoacceito:              a.termoAssinado,
   }
 }
@@ -92,6 +100,10 @@ export async function anamneseRoutes(app: FastifyInstance) {
       frequenciaSemanal:     d.frequenciaSemanal,
       qualidadeSono:         d.qualidadeSono,
       consumoAlcool:         d.consumoAlcool,
+      alergiasIntolerancias:   d.alergiasIntolerancias,
+      restricoesAlimentares:   d.restricoesAlimentares,
+      preferenciasAlimentares: d.preferenciasAlimentares,
+      rotinaAlimentar:         d.rotinaAlimentar,
       termoAssinado:         d.termoacceito,
       termoData:             d.termoacceito ? new Date() : null,
     }
