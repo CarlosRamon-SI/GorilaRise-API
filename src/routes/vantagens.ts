@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { requireAdmin, requireAuth } from '../middleware/auth.js'
+import { requireAdmin } from '../middleware/auth.js'
 
 const schema = z.object({
   empresa:    z.string().min(1),
@@ -14,8 +14,8 @@ const schema = z.object({
 })
 
 export async function vantagensRoutes(app: FastifyInstance) {
-  // Atleta: lista apenas as vantagens ativas
-  app.get('/vantagens', { preHandler: requireAuth }, async () => {
+  // Público: lista apenas as vantagens ativas
+  app.get('/vantagens', async () => {
     return prisma.vantagemClube.findMany({
       where: { ativo: true },
       orderBy: [{ categoria: 'asc' }, { empresa: 'asc' }],
