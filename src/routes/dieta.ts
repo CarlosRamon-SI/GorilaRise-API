@@ -283,4 +283,41 @@ export async function dietaRoutes(app: FastifyInstance) {
       throw e
     }
   })
+
+  // Professor/Admin: cria uma prescrição completa para um atleta a partir das refeições de um modelo salvo
+  app.post('/dieta/modelos/:id/prescrever', { preHandler: requireTreinador }, async (request, reply) => {
+    const { sub } = request.user as { sub: number }
+    const { id } = request.params as { id: string }
+
+    const modelo = await prisma.modeloDieta.findUnique({ where: { id: Number(id) } })
+    if (!modelo) return reply.status(404).send({ error: 'Modelo não encontrado' })
+
+    const result = prescricaoSchema.safeParse(request.body)
+    if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
+
+    const estrutura = modelo.estrutura as unknown as z.infer<typeof modeloDietaSchema>['estrutura']
+
+    const prescricao = await prisma.prescricaoDieta.create({
+      data: {
+        ...result.data,
+        autorId: sub,
+        refeicoes: {
+          create: estrutura.map((r, i) => ({
+            nome: r.nome,
+            horario: r.horario,
+            ordem: i,
+            itens: {
+              create: r.itens.map((it, j) => ({
+                alimentoId: it.alimentoId,
+                quantidadeGramas: it.quantidadeGramas,
+                ordem: j,
+              })),
+            },
+          })),
+        },
+      },
+      include: refeicaoInclude,
+    })
+    return reply.status(201).send(toPrescricaoResponse(prescricao))
+  })
 }
