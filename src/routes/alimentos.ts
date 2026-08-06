@@ -14,6 +14,10 @@ const alimentoSchema = z.object({
 
 const alimentoUpdateSchema = alimentoSchema.partial()
 
+const importarSchema = z.object({
+  itens: z.array(z.record(z.string(), z.any())).min(1).max(2000),
+})
+
 export async function alimentosRoutes(app: FastifyInstance) {
   // Busca/lista alimentos do banco (100g de referência)
   app.get('/alimentos', { preHandler: requireTreinador }, async (request) => {
@@ -32,6 +36,33 @@ export async function alimentosRoutes(app: FastifyInstance) {
       data: { ...result.data, autorId: sub },
     })
     return reply.status(201).send(alimento)
+  })
+
+  // Importação em massa (ex: planilha .xlsx convertida em JSON pelo frontend)
+  app.post('/alimentos/importar', { preHandler: requireTreinador }, async (request, reply) => {
+    const { sub } = request.user as { sub: number }
+    const body = importarSchema.safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.flatten() })
+
+    let criados = 0
+    const erros: { linha: number; erro: string }[] = []
+
+    for (const [i, raw] of body.data.itens.entries()) {
+      const parsed = alimentoSchema.safeParse(raw)
+      if (!parsed.success) {
+        const mensagens = Object.values(parsed.error.flatten().fieldErrors).flat()
+        erros.push({ linha: i + 2, erro: mensagens.join('; ') || 'Dados inválidos' })
+        continue
+      }
+      try {
+        await prisma.alimento.create({ data: { ...parsed.data, autorId: sub } })
+        criados++
+      } catch {
+        erros.push({ linha: i + 2, erro: 'Erro ao salvar no banco' })
+      }
+    }
+
+    return reply.status(201).send({ criados, total: body.data.itens.length, erros })
   })
 
   app.patch('/alimentos/:id', { preHandler: requireTreinador }, async (request, reply) => {
