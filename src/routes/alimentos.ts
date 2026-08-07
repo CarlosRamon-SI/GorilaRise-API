@@ -4,8 +4,8 @@ import { prisma } from '../lib/prisma.js'
 import { requireTreinador } from '../middleware/auth.js'
 
 const alimentoSchema = z.object({
-  nome:          z.string().min(1),
-  categoria:     z.string().optional(),
+  nome:          z.string().min(1).max(191, 'Nome muito longo (máx. 191 caracteres).'),
+  categoria:     z.string().max(191, 'Categoria muito longa (máx. 191 caracteres).').optional(),
   caloriasKcal:  z.number().nonnegative(),
   carboidratosG: z.number().nonnegative(),
   proteinasG:    z.number().nonnegative(),
