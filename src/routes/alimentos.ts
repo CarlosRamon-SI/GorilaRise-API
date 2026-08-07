@@ -48,17 +48,21 @@ export async function alimentosRoutes(app: FastifyInstance) {
     const erros: { linha: number; erro: string }[] = []
 
     for (const [i, raw] of body.data.itens.entries()) {
-      const parsed = alimentoSchema.safeParse(raw)
+      // O frontend manda a linha real da planilha (após pular o cabeçalho); sem isso, cai no índice do array.
+      const { linha: linhaEnviada, ...campos } = raw as Record<string, any>
+      const linha = typeof linhaEnviada === 'number' ? linhaEnviada : i + 2
+
+      const parsed = alimentoSchema.safeParse(campos)
       if (!parsed.success) {
         const mensagens = Object.values(parsed.error.flatten().fieldErrors).flat()
-        erros.push({ linha: i + 2, erro: mensagens.join('; ') || 'Dados inválidos' })
+        erros.push({ linha, erro: mensagens.join('; ') || 'Dados inválidos' })
         continue
       }
       try {
         await prisma.alimento.create({ data: { ...parsed.data, autorId: sub } })
         criados++
       } catch {
-        erros.push({ linha: i + 2, erro: 'Erro ao salvar no banco' })
+        erros.push({ linha, erro: 'Erro ao salvar no banco' })
       }
     }
 
