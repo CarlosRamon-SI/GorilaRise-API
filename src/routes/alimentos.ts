@@ -32,10 +32,15 @@ export async function alimentosRoutes(app: FastifyInstance) {
     const { sub } = request.user as { sub: number }
     const result = alimentoSchema.safeParse(request.body)
     if (!result.success) return reply.status(400).send({ error: result.error.flatten() })
-    const alimento = await prisma.alimento.create({
-      data: { ...result.data, autorId: sub },
-    })
-    return reply.status(201).send(alimento)
+    try {
+      const alimento = await prisma.alimento.create({
+        data: { ...result.data, autorId: sub },
+      })
+      return reply.status(201).send(alimento)
+    } catch (e: any) {
+      if (e.code === 'P2002') return reply.status(409).send({ error: `Já existe um alimento chamado "${result.data.nome}".` })
+      throw e
+    }
   })
 
   // Importação em massa (ex: planilha .xlsx convertida em JSON pelo frontend)
@@ -61,8 +66,9 @@ export async function alimentosRoutes(app: FastifyInstance) {
       try {
         await prisma.alimento.create({ data: { ...parsed.data, autorId: sub } })
         criados++
-      } catch {
-        erros.push({ linha, erro: 'Erro ao salvar no banco' })
+      } catch (e: any) {
+        if (e.code === 'P2002') erros.push({ linha, erro: `Já existe um alimento chamado "${parsed.data.nome}".` })
+        else erros.push({ linha, erro: 'Erro ao salvar no banco' })
       }
     }
 
@@ -81,6 +87,7 @@ export async function alimentosRoutes(app: FastifyInstance) {
       return alimento
     } catch (e: any) {
       if (e.code === 'P2025') return reply.status(404).send({ error: 'Não encontrado.' })
+      if (e.code === 'P2002') return reply.status(409).send({ error: 'Já existe um alimento com esse nome.' })
       throw e
     }
   })

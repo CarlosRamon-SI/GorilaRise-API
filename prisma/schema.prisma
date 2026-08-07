@@ -595,7 +595,7 @@ model PrescricaoDieta {
 
 model Alimento {
   id            Int      @id @default(autoincrement())
-  nome          String
+  nome          String   @unique
   categoria     String?
   caloriasKcal  Decimal  @db.Decimal(7, 2)
   carboidratosG Decimal  @db.Decimal(6, 2)
